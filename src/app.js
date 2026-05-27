@@ -19,6 +19,8 @@ const trackingRoutes = require("./routes/trackingRoutes");
 app.use("/api/tracking", trackingRoutes);
 const crowdRoutes = require("./routes/crowdRoutes");
 app.use("/api/crowd", crowdRoutes);
+const emergencyRoutes = require("./routes/emergencyRoutes");
+app.use("/api/emergency", emergencyRoutes);
 
 // Health check
 app.get("/", (req, res) => {

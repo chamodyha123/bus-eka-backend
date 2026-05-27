@@ -15,6 +15,7 @@ model User {
   role     String @default("passenger")
 
   crowdReports CrowdReport[]
+  emergencyReports EmergencyReport[]
 }
 model Bus {
   id                  Int      @id @default(autoincrement())
@@ -30,6 +31,7 @@ model Bus {
   drivers Driver[]
   gpsLogs GPSLog[]
   crowdReports CrowdReport[]
+  emergencyReports EmergencyReport[]
 
   createdAt DateTime @default(now())
 }
@@ -73,6 +75,22 @@ model CrowdReport {
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+model EmergencyReport {
+  id              Int      @id @default(autoincrement())
+  emergencyType   String
+  description     String?
+
+  latitude        Float?
+  longitude       Float?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  busId Int?
+  bus   Bus? @relation(fields: [busId], references: [id])
 
   createdAt DateTime @default(now())
 }
