@@ -13,6 +13,8 @@ model User {
   email    String @unique
   password String
   role     String @default("passenger")
+
+  crowdReports CrowdReport[]
 }
 model Bus {
   id                  Int      @id @default(autoincrement())
@@ -27,6 +29,7 @@ model Bus {
 
   drivers Driver[]
   gpsLogs GPSLog[]
+  crowdReports CrowdReport[]
 
   createdAt DateTime @default(now())
 }
@@ -58,6 +61,18 @@ model GPSLog {
 
   busId Int
   bus   Bus @relation(fields: [busId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+model CrowdReport {
+  id          Int      @id @default(autoincrement())
+  crowdLevel  String
+
+  busId Int
+  bus   Bus @relation(fields: [busId], references: [id])
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }
