@@ -13,6 +13,8 @@ const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
 const busRoutes = require("./routes/busRoutes");
 app.use("/api/buses", busRoutes);
+const routeRoutes = require("./routes/routeRoutes");
+app.use("/api/routes", routeRoutes);
 
 // Health check
 app.get("/", (req, res) => {

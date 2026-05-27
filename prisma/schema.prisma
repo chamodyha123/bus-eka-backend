@@ -22,6 +22,9 @@ model Bus {
   category            String
   imageUrl            String?
 
+  routeId Int?
+  route   Route? @relation(fields: [routeId], references: [id])
+
   drivers Driver[]
 
   createdAt DateTime @default(now())
@@ -34,4 +37,16 @@ model Driver {
 
   busId Int?
   bus   Bus? @relation(fields: [busId], references: [id])
+}
+model Route {
+  id             Int      @id @default(autoincrement())
+  routeNumber    String
+  startLocation  String
+  endLocation    String
+  departureTime  String
+  arrivalTime    String
+
+  buses Bus[]
+
+  createdAt DateTime @default(now())
 }
