@@ -21,6 +21,10 @@ const crowdRoutes = require("./routes/crowdRoutes");
 app.use("/api/crowd", crowdRoutes);
 const emergencyRoutes = require("./routes/emergencyRoutes");
 app.use("/api/emergency", emergencyRoutes);
+const etaRoutes = require("./routes/etaRoutes");
+app.use("/api/eta", etaRoutes);
+const notificationRoutes = require("./routes/notificationRoutes");
+app.use("/api/notifications", notificationRoutes);
 
 // Health check
 app.get("/", (req, res) => {

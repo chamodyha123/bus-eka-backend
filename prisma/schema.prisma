@@ -16,6 +16,7 @@ model User {
 
   crowdReports CrowdReport[]
   emergencyReports EmergencyReport[]
+  notifications Notification[]
 }
 model Bus {
   id                  Int      @id @default(autoincrement())
@@ -53,6 +54,7 @@ model Route {
   arrivalTime    String
 
   buses Bus[]
+  distanceKm Float?
 
   createdAt DateTime @default(now())
 }
@@ -91,6 +93,17 @@ model EmergencyReport {
 
   busId Int?
   bus   Bus? @relation(fields: [busId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  type      String
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }
