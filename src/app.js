@@ -15,6 +15,8 @@ const busRoutes = require("./routes/busRoutes");
 app.use("/api/buses", busRoutes);
 const routeRoutes = require("./routes/routeRoutes");
 app.use("/api/routes", routeRoutes);
+const trackingRoutes = require("./routes/trackingRoutes");
+app.use("/api/tracking", trackingRoutes);
 
 // Health check
 app.get("/", (req, res) => {

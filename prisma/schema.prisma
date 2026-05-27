@@ -26,6 +26,7 @@ model Bus {
   route   Route? @relation(fields: [routeId], references: [id])
 
   drivers Driver[]
+  gpsLogs GPSLog[]
 
   createdAt DateTime @default(now())
 }
@@ -47,6 +48,16 @@ model Route {
   arrivalTime    String
 
   buses Bus[]
+
+  createdAt DateTime @default(now())
+}
+model GPSLog {
+  id        Int      @id @default(autoincrement())
+  latitude  Float
+  longitude Float
+
+  busId Int
+  bus   Bus @relation(fields: [busId], references: [id])
 
   createdAt DateTime @default(now())
 }
