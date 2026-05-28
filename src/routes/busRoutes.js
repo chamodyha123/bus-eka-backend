@@ -3,7 +3,22 @@ const router = express.Router();
 
 const busController = require("../controllers/busController");
 
-router.post("/", busController.createBus);
-router.get("/", busController.getBuses);
+const { authenticate } = require("../middleware/authMiddleware");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
+
+// CREATE BUS
+router.post(
+  "/",
+  authenticate,
+  authorizeRoles("admin", "bus_owner"),
+  busController.createBus
+);
+
+// GET BUSES
+router.get(
+  "/",
+  authenticate,
+  busController.getBuses
+);
 
 module.exports = router;

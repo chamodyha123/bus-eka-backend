@@ -1,6 +1,11 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+const {
+  successResponse,
+  errorResponse
+} = require("../utils/apiResponse");
+
 // CREATE BUS
 exports.createBus = async (req, res) => {
   try {
@@ -9,7 +14,8 @@ exports.createBus = async (req, res) => {
       routePermitNumber,
       busType,
       category,
-      imageUrl
+      imageUrl,
+      routeId
     } = req.body;
 
     const bus = await prisma.bus.create({
@@ -18,27 +24,58 @@ exports.createBus = async (req, res) => {
         routePermitNumber,
         busType,
         category,
-        imageUrl
+        imageUrl,
+
+        ownerId: req.user.id,
+
+        routeId: routeId || null
       }
     });
 
-    res.status(201).json(bus);
+    return successResponse(
+      res,
+      "Bus created successfully",
+      bus,
+      201
+    );
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return errorResponse(res, err.message);
   }
 };
 
-// GET ALL BUSES
+// GET BUSES
 exports.getBuses = async (req, res) => {
   try {
-    const buses = await prisma.bus.findMany({
-      include: { drivers: true }
-    });
+    let buses;
 
-    res.json(buses);
+    if (req.user.role === "admin") {
+      buses = await prisma.bus.findMany({
+        include: {
+          drivers: true,
+          route: true,
+          owner: true
+        }
+      });
+    } else {
+      buses = await prisma.bus.findMany({
+        where: {
+          ownerId: req.user.id
+        },
+        include: {
+          drivers: true,
+          route: true
+        }
+      });
+    }
+
+    return successResponse(
+      res,
+      "Buses fetched successfully",
+      buses
+    );
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return errorResponse(res, err.message);
   }
 };

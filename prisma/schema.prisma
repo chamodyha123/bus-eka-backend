@@ -17,18 +17,29 @@ model User {
   crowdReports CrowdReport[]
   emergencyReports EmergencyReport[]
   notifications Notification[]
+  gpsLogs GPSLog[]
+  ownedBuses Bus[]
 }
 model Bus {
   id                  Int      @id @default(autoincrement())
+
   licensePlate        String   @unique
   routePermitNumber   String?
+
   busType             String
   category            String
+
   imageUrl            String?
 
+  // ROUTE
   routeId Int?
   route   Route? @relation(fields: [routeId], references: [id])
 
+  // OWNER
+  ownerId Int
+  owner   User @relation(fields: [ownerId], references: [id])
+
+  // RELATIONS
   drivers Driver[]
   gpsLogs GPSLog[]
   crowdReports CrowdReport[]
@@ -59,12 +70,18 @@ model Route {
   createdAt DateTime @default(now())
 }
 model GPSLog {
-  id        Int      @id @default(autoincrement())
-  latitude  Float
-  longitude Float
+  id              Int      @id @default(autoincrement())
+
+  latitude        Float
+  longitude       Float
+
+  trackingSource  String
 
   busId Int
   bus   Bus @relation(fields: [busId], references: [id])
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }

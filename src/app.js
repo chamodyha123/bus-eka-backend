@@ -1,34 +1,54 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
+
+const authRoutes = require("./routes/authRoutes");
+const busRoutes = require("./routes/busRoutes");
+const routeRoutes = require("./routes/routeRoutes");
+const trackingRoutes = require("./routes/trackingRoutes");
+const crowdRoutes = require("./routes/crowdRoutes");
+const emergencyRoutes = require("./routes/emergencyRoutes");
+const etaRoutes = require("./routes/etaRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
-// Middleware
+// MIDDLEWARE
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
+app.use(helmet());
 
-// Routes
-const authRoutes = require("./routes/authRoutes");
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+});
+
+app.use(limiter);
+
+// ROUTES
 app.use("/api/auth", authRoutes);
-const busRoutes = require("./routes/busRoutes");
 app.use("/api/buses", busRoutes);
-const routeRoutes = require("./routes/routeRoutes");
 app.use("/api/routes", routeRoutes);
-const trackingRoutes = require("./routes/trackingRoutes");
 app.use("/api/tracking", trackingRoutes);
-const crowdRoutes = require("./routes/crowdRoutes");
 app.use("/api/crowd", crowdRoutes);
-const emergencyRoutes = require("./routes/emergencyRoutes");
 app.use("/api/emergency", emergencyRoutes);
-const etaRoutes = require("./routes/etaRoutes");
 app.use("/api/eta", etaRoutes);
-const notificationRoutes = require("./routes/notificationRoutes");
 app.use("/api/notifications", notificationRoutes);
 
-// Health check
+// TEST ROUTE
 app.get("/", (req, res) => {
-  res.send("Bus Eka Backend is Running 🚍");
+  res.send("Bus Eka Backend Running 🚍");
+});
+
+// 404 HANDLER
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found"
+  });
 });
 
 module.exports = app;
