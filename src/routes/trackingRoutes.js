@@ -3,8 +3,17 @@ const router = express.Router();
 
 const trackingController = require("../controllers/trackingController");
 
-router.post("/update", trackingController.updateLocation);
+const { authenticate } = require("../middleware/authMiddleware");
 
-router.get("/:busId", trackingController.getLatestLocation);
+router.post(
+  "/update",
+  authenticate,
+  trackingController.updateLocation
+);
+
+router.get(
+  "/:busId",
+  trackingController.getLatestLocation
+);
 
 module.exports = router;

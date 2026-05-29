@@ -15,12 +15,26 @@ const trackingPriority = {
 exports.updateLocation = async (req, res) => {
   try {
 
+    // ROLE VALIDATION
+    const allowedRoles = [
+      "driver",
+      "conductor",
+      "admin",
+      "passenger"
+    ];
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized role"
+      });
+    }
+
     const {
       busId,
       latitude,
       longitude,
-      trackingSource,
-      userId
+      trackingSource
     } = req.body;
 
     // VALID SOURCES
@@ -38,6 +52,38 @@ exports.updateLocation = async (req, res) => {
       });
     }
 
+    // PASSENGER FALLBACK PROTECTION
+    if (trackingSource === "PASSENGER") {
+
+      const recentTrustedLog = await prisma.gPSLog.findFirst({
+        where: {
+          busId,
+          trackingSource: {
+            in: ["GPS_DEVICE", "DRIVER", "CONDUCTOR"]
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        }
+      });
+
+      if (recentTrustedLog) {
+
+        const diff =
+          new Date() - new Date(recentTrustedLog.createdAt);
+
+        // 2 minutes
+        if (diff < 120000) {
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "Passenger tracking disabled while trusted tracking is active"
+          });
+        }
+      }
+    }
+
     // CREATE GPS LOG
     const gpsLog = await prisma.gPSLog.create({
       data: {
@@ -45,11 +91,11 @@ exports.updateLocation = async (req, res) => {
         latitude,
         longitude,
         trackingSource,
-        userId
+        userId: req.user.id
       }
     });
 
-    // GET LATEST TRACKING SOURCES
+    // GET RECENT LOGS
     const latestLogs = await prisma.gPSLog.findMany({
       where: {
         busId
@@ -60,10 +106,11 @@ exports.updateLocation = async (req, res) => {
       take: 20
     });
 
-    // FIND HIGHEST PRIORITY SOURCE
+    // FIND BEST LOG BASED ON PRIORITY
     let bestLog = latestLogs[0];
 
     latestLogs.forEach((log) => {
+
       if (
         trackingPriority[log.trackingSource] <
         trackingPriority[bestLog.trackingSource]
@@ -72,25 +119,25 @@ exports.updateLocation = async (req, res) => {
       }
     });
 
-    // REAL-TIME UPDATE
+    // SOCKET.IO REAL-TIME UPDATE
     const io = getIO();
 
-    io.emit("busLocationUpdated", {
+    io.to(`bus_${busId}`).emit("busLocationUpdated", {
       busId,
       latitude: bestLog.latitude,
       longitude: bestLog.longitude,
       trackingSource: bestLog.trackingSource
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Location updated",
+      message: "Location updated successfully",
       data: gpsLog
     });
 
   } catch (err) {
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });
@@ -114,15 +161,18 @@ exports.getLatestLocation = async (req, res) => {
     });
 
     if (!logs.length) {
+
       return res.status(404).json({
         success: false,
         message: "No location found"
       });
     }
 
+    // FIND BEST TRACKING SOURCE
     let bestLog = logs[0];
 
     logs.forEach((log) => {
+
       if (
         trackingPriority[log.trackingSource] <
         trackingPriority[bestLog.trackingSource]
@@ -131,14 +181,14 @@ exports.getLatestLocation = async (req, res) => {
       }
     });
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: bestLog
     });
 
   } catch (err) {
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });

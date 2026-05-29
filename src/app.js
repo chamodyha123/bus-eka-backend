@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 
+// ROUTES
 const authRoutes = require("./routes/authRoutes");
 const busRoutes = require("./routes/busRoutes");
 const routeRoutes = require("./routes/routeRoutes");
@@ -12,7 +13,9 @@ const crowdRoutes = require("./routes/crowdRoutes");
 const emergencyRoutes = require("./routes/emergencyRoutes");
 const etaRoutes = require("./routes/etaRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
+// CREATE APP FIRST (IMPORTANT)
 const app = express();
 
 // MIDDLEWARE
@@ -37,6 +40,7 @@ app.use("/api/crowd", crowdRoutes);
 app.use("/api/emergency", emergencyRoutes);
 app.use("/api/eta", etaRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
 
 // TEST ROUTE
 app.get("/", (req, res) => {
