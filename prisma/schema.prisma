@@ -204,15 +204,17 @@ model Booking {
   tripId Int
   trip   Trip @relation(fields: [tripId], references: [id])
 
-  seats Seat[]   // multiple seats allowed
+  seats Seat[]
 
   status String @default("PENDING")
   // PENDING | CONFIRMED | CANCELLED
 
   paymentStatus String @default("PENDING")
-  // PENDING | PAID | REFUNDED
+  // PENDING | PAID | FAILED | REFUNDED
 
-  totalAmount Float?
+  totalAmount Float
+
+  paymentId String?  // gateway reference
 
   createdAt DateTime @default(now())
 }

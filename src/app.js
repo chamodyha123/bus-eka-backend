@@ -15,6 +15,10 @@ const etaRoutes = require("./routes/etaRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const seatRoutes = require("./routes/seatRoutes");
+const bookingRoutes = require("./routes/bookingRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+
+
 
 // CREATE APP FIRST (IMPORTANT)
 const app = express();
@@ -43,6 +47,9 @@ app.use("/api/eta", etaRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/seats", seatRoutes);
+
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/payment", require("./routes/paymentRoutes"));
 
 // TEST ROUTE
 app.get("/", (req, res) => {
