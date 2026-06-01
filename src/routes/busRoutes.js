@@ -10,7 +10,7 @@ const { authorizeRoles } = require("../middleware/roleMiddleware");
 router.post(
   "/",
   authenticate,
-  authorizeRoles("admin", "bus_owner"),
+  authorizeRoles("admin", "owner"),
   busController.createBus
 );
 

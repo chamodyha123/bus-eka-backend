@@ -8,11 +8,11 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("passenger")
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
+  role     String @default("passenger")
 
   createdAt DateTime @default(now())
 
@@ -24,15 +24,19 @@ model User {
   emergencyReports EmergencyReport[]
   notifications    Notification[]
   gpsLogs          GPSLog[]
+  bookings         Booking[]
 }
+
 model Bus {
-  id                Int @id @default(autoincrement())
-  licensePlate      String @unique
+  id                Int     @id @default(autoincrement())
+  licensePlate      String  @unique
   routePermitNumber String?
 
-  busType  String
-  category String
-  imageUrl String?
+  busType    String
+  category   String
+  imageUrl   String?
+  seatCount  Int
+  seatLayout String
 
   routeId Int?
   route   Route? @relation(fields: [routeId], references: [id])
@@ -46,40 +50,46 @@ model Bus {
   gpsLogs          GPSLog[]
   crowdReports     CrowdReport[]
   emergencyReports EmergencyReport[]
+  seats            Seat[]
+  trips            Trip[]
 
   createdAt DateTime @default(now())
 }
+
 model Driver {
-  id            Int    @id @default(autoincrement())
+  id            Int     @id @default(autoincrement())
   licenseNumber String
   phoneNumber   String?
 
-  userId Int @unique
+  userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
 
   busId Int?
   bus   Bus? @relation(fields: [busId], references: [id])
 }
+
 model Route {
-  id             Int      @id @default(autoincrement())
-  routeNumber    String
-  startLocation  String
-  endLocation    String
-  departureTime  String
-  arrivalTime    String
+  id            Int    @id @default(autoincrement())
+  routeNumber   String
+  startLocation String
+  endLocation   String
+  departureTime String
+  arrivalTime   String
 
-  buses Bus[]
+  buses      Bus[]
   distanceKm Float?
+  trips      Trip[]
 
   createdAt DateTime @default(now())
 }
+
 model GPSLog {
-  id              Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  latitude        Float
-  longitude       Float
+  latitude  Float
+  longitude Float
 
-  trackingSource  String
+  trackingSource String
 
   busId Int
   bus   Bus @relation(fields: [busId], references: [id])
@@ -89,9 +99,10 @@ model GPSLog {
 
   createdAt DateTime @default(now())
 }
+
 model CrowdReport {
-  id          Int      @id @default(autoincrement())
-  crowdLevel  String
+  id         Int    @id @default(autoincrement())
+  crowdLevel String
 
   busId Int
   bus   Bus @relation(fields: [busId], references: [id])
@@ -101,13 +112,14 @@ model CrowdReport {
 
   createdAt DateTime @default(now())
 }
-model EmergencyReport {
-  id              Int      @id @default(autoincrement())
-  emergencyType   String
-  description     String?
 
-  latitude        Float?
-  longitude       Float?
+model EmergencyReport {
+  id            Int     @id @default(autoincrement())
+  emergencyType String
+  description   String?
+
+  latitude  Float?
+  longitude Float?
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
@@ -117,35 +129,90 @@ model EmergencyReport {
 
   createdAt DateTime @default(now())
 }
+
 model Notification {
-  id        Int      @id @default(autoincrement())
-  title     String
-  message   String
-  type      String
+  id      Int    @id @default(autoincrement())
+  title   String
+  message String
+  type    String
 
   userId Int?
   user   User? @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }
+
 model Owner {
-  id          Int @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   nic         String
   companyName String?
 
-  userId Int @unique
+  userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
 
   buses Bus[]
 }
-model Conductor {
-  id      Int @id @default(autoincrement())
-  nic     String?
-  phone   String?
 
-  userId Int @unique
+model Conductor {
+  id    Int     @id @default(autoincrement())
+  nic   String?
+  phone String?
+
+  userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
 
   busId Int?
   bus   Bus? @relation(fields: [busId], references: [id])
+}
+
+model Seat {
+  id         Int    @id @default(autoincrement())
+  seatNumber String
+  status     String @default("AVAILABLE")
+
+  busId Int
+  bus   Bus @relation(fields: [busId], references: [id])
+
+  bookingId Int?
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Trip {
+  id Int @id @default(autoincrement())
+
+  busId Int
+  bus   Bus @relation(fields: [busId], references: [id])
+
+  routeId Int
+  route   Route @relation(fields: [routeId], references: [id])
+
+  travelDate DateTime
+  price      Float
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+}
+model Booking {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  tripId Int
+  trip   Trip @relation(fields: [tripId], references: [id])
+
+  seats Seat[]   // multiple seats allowed
+
+  status String @default("PENDING")
+  // PENDING | CONFIRMED | CANCELLED
+
+  paymentStatus String @default("PENDING")
+  // PENDING | PAID | REFUNDED
+
+  totalAmount Float?
+
+  createdAt DateTime @default(now())
 }

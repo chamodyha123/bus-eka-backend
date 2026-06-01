@@ -14,6 +14,7 @@ const emergencyRoutes = require("./routes/emergencyRoutes");
 const etaRoutes = require("./routes/etaRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const seatRoutes = require("./routes/seatRoutes");
 
 // CREATE APP FIRST (IMPORTANT)
 const app = express();
@@ -41,6 +42,7 @@ app.use("/api/emergency", emergencyRoutes);
 app.use("/api/eta", etaRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/seats", seatRoutes);
 
 // TEST ROUTE
 app.get("/", (req, res) => {
