@@ -4,26 +4,39 @@ const { initSocket } = require("./sockets/socket");
 
 const PORT = process.env.PORT || 5000;
 
-try {
+// Seat lock scheduler
+const unlockExpiredSeats = require("./jobs/seatLockScheduler");
 
-  const server = http.createServer(app);
+const server = http.createServer(app);
 
-  // INIT SOCKET.IO
-  initSocket(server);
+// Initialize Socket.IO
+initSocket(server);
 
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-  });
+// Auto-unlock expired seats every minute
+setInterval(async () => {
+  try {
+    const unlockedCount = await unlockExpiredSeats();
 
-  // HANDLE UNHANDLED ERRORS
-  process.on("unhandledRejection", (err) => {
-    console.error("Unhandled Rejection:", err.message);
-  });
+    if (unlockedCount > 0) {
+      console.log(`🔓 Unlocked ${unlockedCount} expired seat(s)`);
+    }
+  } catch (err) {
+    console.error("Seat unlock scheduler error:", err.message);
+  }
+}, 60000);
 
-  process.on("uncaughtException", (err) => {
-    console.error("Uncaught Exception:", err.message);
-  });
+// Start server
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
 
-} catch (err) {
-  console.error("Server failed to start:", err.message);
-}
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (err) => {
+  console.error("❌ Unhandled Rejection:", err);
+});
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught Exception:", err);
+  process.exit(1);
+});

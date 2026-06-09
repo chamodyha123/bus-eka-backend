@@ -168,7 +168,12 @@ model Conductor {
 model Seat {
   id         Int    @id @default(autoincrement())
   seatNumber String
-  status     String @default("AVAILABLE")
+
+  status String @default("AVAILABLE")
+  // AVAILABLE | LOCKED | BOOKED
+
+  lockedBy Int?
+  lockedAt DateTime?
 
   busId Int
   bus   Bus @relation(fields: [busId], references: [id])
