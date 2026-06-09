@@ -12,4 +12,5 @@ const sendBusLocationUpdate = (busId, data) => {
 
 module.exports = {
   sendBusLocationUpdate
+  
 };

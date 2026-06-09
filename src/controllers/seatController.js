@@ -1,20 +1,15 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-
 const { getIO } = require("../sockets/socket");
 
-// ================= GET ALL SEATS OF A BUS =================
+// ================= GET SEATS =================
 exports.getBusSeats = async (req, res) => {
   try {
     const { busId } = req.params;
 
     const seats = await prisma.seat.findMany({
-      where: {
-        busId: parseInt(busId)
-      },
-      orderBy: {
-        seatNumber: "asc"
-      }
+      where: { busId: parseInt(busId) },
+      orderBy: { seatNumber: "asc" }
     });
 
     res.json({
@@ -35,17 +30,8 @@ exports.lockSeat = async (req, res) => {
   try {
     const { seatId } = req.body;
 
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized"
-      });
-    }
-
     const seat = await prisma.seat.findUnique({
-      where: {
-        id: seatId
-      }
+      where: { id: seatId }
     });
 
     if (!seat) {
@@ -65,14 +51,12 @@ exports.lockSeat = async (req, res) => {
     if (seat.status === "LOCKED") {
       return res.status(400).json({
         success: false,
-        message: "Seat currently locked"
+        message: "Seat already locked"
       });
     }
 
     const updatedSeat = await prisma.seat.update({
-      where: {
-        id: seatId
-      },
+      where: { id: seatId },
       data: {
         status: "LOCKED",
         lockedBy: req.user.id,
@@ -82,6 +66,7 @@ exports.lockSeat = async (req, res) => {
 
     getIO().emit("seatLocked", {
       seatId: updatedSeat.id,
+      busId: updatedSeat.busId,
       status: "LOCKED"
     });
 
@@ -98,15 +83,13 @@ exports.lockSeat = async (req, res) => {
   }
 };
 
-// ================= UNLOCK SEAT MANUALLY =================
+// ================= UNLOCK SEAT =================
 exports.unlockSeat = async (req, res) => {
   try {
     const { seatId } = req.body;
 
     const updatedSeat = await prisma.seat.update({
-      where: {
-        id: seatId
-      },
+      where: { id: seatId },
       data: {
         status: "AVAILABLE",
         lockedBy: null,
@@ -131,27 +114,21 @@ exports.unlockSeat = async (req, res) => {
   }
 };
 
-// ================= AUTO UNLOCK EXPIRED SEATS =================
+// ================= AUTO CLEANUP EXPIRED LOCKS =================
 exports.unlockExpiredSeats = async () => {
   try {
-    const fiveMinutesAgo = new Date(
-      Date.now() - 5 * 60 * 1000
-    );
+    const expiryTime = new Date(Date.now() - 5 * 60 * 1000);
 
     const expiredSeats = await prisma.seat.findMany({
       where: {
         status: "LOCKED",
-        lockedAt: {
-          lt: fiveMinutesAgo
-        }
+        lockedAt: { lt: expiryTime }
       }
     });
 
     for (const seat of expiredSeats) {
       await prisma.seat.update({
-        where: {
-          id: seat.id
-        },
+        where: { id: seat.id },
         data: {
           status: "AVAILABLE",
           lockedBy: null,
@@ -167,7 +144,7 @@ exports.unlockExpiredSeats = async () => {
     return expiredSeats.length;
 
   } catch (err) {
-    console.error("Error unlocking expired seats:", err);
+    console.error("unlockExpiredSeats error:", err.message);
     return 0;
   }
 };

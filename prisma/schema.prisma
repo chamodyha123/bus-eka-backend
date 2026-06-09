@@ -179,7 +179,7 @@ model Seat {
   bus   Bus @relation(fields: [busId], references: [id])
 
   bookingId Int?
-  booking   Booking? @relation(fields: [bookingId], references: [id])
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 }
@@ -219,11 +219,12 @@ model Booking {
   paymentStatus String @default("PENDING")
   // PENDING | PAID | FAILED | REFUNDED
 
-  paymentId String? // Payment gateway reference
+  paymentId String?
 
   isUsed Boolean @default(false)
 
   totalAmount Float
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
