@@ -17,6 +17,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const seatRoutes = require("./routes/seatRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const ticketRoutes = require("./routes/ticketRoutes");
 
 
 
@@ -49,6 +50,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/seats", seatRoutes);
 
+app.use("/api/tickets", ticketRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payment", require("./routes/paymentRoutes"));
 

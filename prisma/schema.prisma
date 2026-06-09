@@ -204,12 +204,14 @@ model Booking {
   id Int @id @default(autoincrement())
 
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   tripId Int
-  trip   Trip @relation(fields: [tripId], references: [id])
+  trip Trip @relation(fields: [tripId], references: [id])
 
   seats Seat[]
+
+  qrCode String? @unique
 
   status String @default("PENDING")
   // PENDING | CONFIRMED | CANCELLED
@@ -217,9 +219,11 @@ model Booking {
   paymentStatus String @default("PENDING")
   // PENDING | PAID | FAILED | REFUNDED
 
-  totalAmount Float
+  paymentId String? // Payment gateway reference
 
-  paymentId String?  // gateway reference
+  isUsed Boolean @default(false)
+
+  totalAmount Float
 
   createdAt DateTime @default(now())
 }
