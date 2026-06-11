@@ -13,7 +13,7 @@ export default function Login() {
   const router = useRouter();
 
   const handleLogin = async (e) => {
-    e.preventDefault(); // 🔥 IMPORTANT FIX
+    e.preventDefault();
 
     try {
       const res = await api.post("/auth/login", {
@@ -21,16 +21,25 @@ export default function Login() {
         password,
       });
 
-      login(res.data.user, res.data.token);
+      const { user, token } = res.data;
 
-      router.push("/dashboard");
+      login(user, token);
+
+      const roleRoutes = {
+        owner: "/dashboard/owner",
+        passenger: "/dashboard/passenger",
+        conductor: "/dashboard/conductor",
+        admin: "/dashboard/admin",
+      };
+
+      router.push(roleRoutes[user.role] || "/dashboard");
     } catch (err) {
-      console.log(err);
+      console.error(err);
       alert("Login failed");
     }
   };
 
-  return (
+ return (
     <div className="flex h-screen items-center justify-center">
       <form
         onSubmit={handleLogin}
