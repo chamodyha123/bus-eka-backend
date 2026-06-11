@@ -7,37 +7,63 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      const res = await api.get("/admin/stats");
-      setStats(res.data.data);
-    };
-
-    fetchStats();
+    loadStats();
   }, []);
 
+  const loadStats = async () => {
+    try {
+      const res = await api.get("/admin/stats");
+      setStats(res.data.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  if (!stats) return <p>Loading...</p>;
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+    <div className="container mt-4">
+      <h1>Admin Dashboard</h1>
 
-      {stats && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 bg-white shadow rounded">
-            Users: {stats.totalUsers}
-          </div>
+      <div className="row mt-4">
 
-          <div className="p-4 bg-white shadow rounded">
-            Buses: {stats.totalBuses}
-          </div>
-
-          <div className="p-4 bg-white shadow rounded">
-            Routes: {stats.totalRoutes}
-          </div>
-
-          <div className="p-4 bg-white shadow rounded">
-            Emergencies: {stats.totalEmergency}
+        <div className="col-md-3">
+          <div className="card">
+            <div className="card-body text-center">
+              <h3>{stats.totalUsers}</h3>
+              <p>Users</p>
+            </div>
           </div>
         </div>
-      )}
+
+        <div className="col-md-3">
+          <div className="card">
+            <div className="card-body text-center">
+              <h3>{stats.totalBuses}</h3>
+              <p>Buses</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card">
+            <div className="card-body text-center">
+              <h3>{stats.totalRoutes}</h3>
+              <p>Routes</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card">
+            <div className="card-body text-center">
+              <h3>{stats.totalEmergency}</h3>
+              <p>Emergencies</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
