@@ -2,80 +2,58 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function RoutesPage() {
   const [routes, setRoutes] = useState([]);
-  const [filteredRoutes, setFilteredRoutes] = useState([]);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [buses, setBuses] = useState([]);
 
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
-    fetchRoutes();
+    loadRoutes();
   }, []);
 
-  const fetchRoutes = async () => {
+  const loadRoutes = async () => {
     try {
       const res = await api.get("/routes");
 
-      setRoutes(res.data);
-      setFilteredRoutes(res.data);
+      setRoutes(res.data.data || res.data);
     } catch (err) {
-      console.error(err);
+      console.log(err);
     }
   };
 
-  const handleSearch = async () => {
+  const loadBuses = async (routeId) => {
     try {
       const res = await api.get(
-        `/routes/search?start=${start}&end=${end}`
+        `/buses/route/${routeId}`
       );
 
-      setFilteredRoutes(res.data);
+      setSelectedRoute(routeId);
+      setBuses(res.data.data || []);
     } catch (err) {
-      console.error(err);
+      console.log(err);
     }
   };
 
   return (
     <div className="container mt-4">
-      <h2>Search Routes</h2>
 
-      <div className="row mb-4">
-        <div className="col-md-5">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Start Location"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-          />
-        </div>
+      <h2 className="mb-4">
+        Available Routes
+      </h2>
 
-        <div className="col-md-5">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="End Location"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-          />
-        </div>
-
-        <div className="col-md-2">
-          <button
-            className="btn btn-primary w-100"
-            onClick={handleSearch}
-          >
-            Search
-          </button>
-        </div>
-      </div>
+      {/* ROUTES */}
 
       <div className="row">
-        {filteredRoutes.map((route) => (
-          <div className="col-md-6 mb-3" key={route.id}>
-            <div className="card">
+        {routes.map((route) => (
+          <div
+            key={route.id}
+            className="col-md-6 mb-3"
+          >
+            <div className="card shadow-sm">
               <div className="card-body">
 
                 <h5>
@@ -92,21 +70,82 @@ export default function RoutesPage() {
                   {route.endLocation}
                 </p>
 
-                <p>
-                  <strong>Departure:</strong>{" "}
-                  {route.departureTime}
-                </p>
-
-                <p>
-                  <strong>Arrival:</strong>{" "}
-                  {route.arrivalTime}
-                </p>
+                <button
+                  className="btn btn-warning"
+                  onClick={() =>
+                    loadBuses(route.id)
+                  }
+                >
+                  View Buses
+                </button>
 
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* BUSES */}
+
+      {selectedRoute && (
+        <>
+          <hr />
+
+          <h3 className="mt-4 mb-3">
+            Available Buses
+          </h3>
+
+          <div className="row">
+            {buses.map((bus) => (
+              <div
+                key={bus.id}
+                className="col-md-6 mb-3"
+              >
+                <div className="card border-primary">
+                  <div className="card-body">
+
+                    <h5>
+                      {bus.licensePlate}
+                    </h5>
+
+                    <p>
+                      Type: {bus.busType}
+                    </p>
+
+                    <p>
+                      Category: {bus.category}
+                    </p>
+
+                    <button
+                      className="btn btn-success me-2"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/passenger/tracking/${bus.id}`
+                        )
+                      }
+                    >
+                      Track Bus
+                    </button>
+
+                    <button
+                      className="btn btn-primary"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/passenger/booking/${bus.id}`
+                        )
+                      }
+                    >
+                      Book Seats
+                    </button>
+
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
     </div>
   );
 }

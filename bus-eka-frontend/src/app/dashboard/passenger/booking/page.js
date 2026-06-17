@@ -1,147 +1,122 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import api from "@/lib/api";
-import socket from "@/lib/socket";
+import { useRouter } from "next/navigation";
 
-export default function BookingPage() {
-  const [busId, setBusId] = useState("");
-  const [seats, setSeats] = useState([]);
-  const [selectedSeats, setSelectedSeats] = useState([]);
+export default function BookingSearchPage() {
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
 
-  const fetchSeats = async () => {
-    if (!busId) return;
+  const [routes, setRoutes] = useState([]);
+  const [buses, setBuses] = useState([]);
 
+  const router = useRouter();
+
+  const searchRoutes = async () => {
     try {
-      const res = await api.get(`/seats/bus/${busId}`);
-      setSeats(res.data.data);
+      const res = await api.get(
+        `/routes/search?start=${start}&end=${end}`
+      );
+
+      setRoutes(res.data.data || []);
+      setBuses([]);
     } catch (err) {
       console.log(err);
     }
   };
 
-  useEffect(() => {
-    socket.on("seatLocked", (data) => {
-      setSeats((prev) =>
-        prev.map((seat) =>
-          seat.id === data.seatId
-            ? { ...seat, status: "LOCKED" }
-            : seat
-        )
-      );
-    });
-
-    socket.on("seatUnlocked", (data) => {
-      setSeats((prev) =>
-        prev.map((seat) =>
-          seat.id === data.seatId
-            ? { ...seat, status: "AVAILABLE" }
-            : seat
-        )
-      );
-    });
-
-    return () => {
-      socket.off("seatLocked");
-      socket.off("seatUnlocked");
-    };
-  }, []);
-
-  const selectSeat = async (seat) => {
-    if (seat.status !== "AVAILABLE") return;
-
+  const loadBuses = async (routeId) => {
     try {
-      await api.post("/seats/lock", {
-        seatId: seat.id
-      });
-
-      setSelectedSeats((prev) => [...prev, seat.id]);
-
-      setSeats((prev) =>
-        prev.map((s) =>
-          s.id === seat.id
-            ? { ...s, status: "LOCKED" }
-            : s
-        )
+      const res = await api.get(
+        `/buses/route/${routeId}`
       );
+
+      setBuses(res.data.data || []);
     } catch (err) {
-      alert(err.response?.data?.message);
-    }
-  };
-
-  const createBooking = async () => {
-    try {
-      const tripId = prompt("Enter Trip ID");
-
-      const res = await api.post("/bookings", {
-        tripId: Number(tripId),
-        seatIds: selectedSeats
-      });
-
-      alert("Booking Created");
-
-      console.log(res.data);
-
-    } catch (err) {
-      alert(err.response?.data?.message);
+      console.log(err);
     }
   };
 
   return (
     <div className="container mt-4">
 
-      <h2>Seat Booking</h2>
+      <h2>Book Seats</h2>
 
-      <div className="mb-3">
-        <input
-          className="form-control"
-          placeholder="Bus ID"
-          value={busId}
-          onChange={(e) => setBusId(e.target.value)}
-        />
-      </div>
+      <div className="row mb-4">
+        <div className="col-md-5">
+          <input
+            className="form-control"
+            placeholder="Start Location"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+          />
+        </div>
 
-      <button
-        className="btn btn-primary mb-4"
-        onClick={fetchSeats}
-      >
-        Load Seats
-      </button>
+        <div className="col-md-5">
+          <input
+            className="form-control"
+            placeholder="End Location"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+          />
+        </div>
 
-      <div className="row">
-        {seats.map((seat) => (
-          <div
-            key={seat.id}
-            className="col-md-2 mb-3"
+        <div className="col-md-2">
+          <button
+            className="btn btn-primary w-100"
+            onClick={searchRoutes}
           >
+            Search
+          </button>
+        </div>
+      </div>
+
+      {routes.map((route) => (
+        <div key={route.id} className="card mb-3">
+          <div className="card-body">
+
+            <h5>
+              Route {route.routeNumber}
+            </h5>
+
+            <p>
+              {route.startLocation}
+              {" → "}
+              {route.endLocation}
+            </p>
+
             <button
-              className={`btn w-100 ${
-                seat.status === "AVAILABLE"
-                  ? "btn-success"
-                  : seat.status === "LOCKED"
-                  ? "btn-warning"
-                  : "btn-danger"
-              }`}
-              onClick={() => selectSeat(seat)}
+              className="btn btn-warning"
+              onClick={() => loadBuses(route.id)}
             >
-              {seat.seatNumber}
+              View Buses
             </button>
+
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
 
-      <div className="mt-4">
-        <h5>
-          Selected Seats: {selectedSeats.length}
-        </h5>
+      {buses.map((bus) => (
+        <div key={bus.id} className="card mb-3">
+          <div className="card-body">
 
-        <button
-          className="btn btn-dark"
-          onClick={createBooking}
-        >
-          Create Booking
-        </button>
-      </div>
+            <h5>{bus.licensePlate}</h5>
+
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                router.push(
+                  `/dashboard/passenger/booking/${bus.id}`
+                )
+              }
+            >
+              Book Seats
+            </button>
+
+          </div>
+        </div>
+      ))}
 
     </div>
   );
