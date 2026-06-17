@@ -23,6 +23,12 @@ exports.register = async (req, res) => {
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
+    if (role === "admin") {
+  return res.status(403).json({
+    success: false,
+    message: "Admin registration not allowed"
+  });
+}
 
     if (existingUser) {
       return res.status(400).json({

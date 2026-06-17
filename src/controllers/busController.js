@@ -17,7 +17,6 @@ exports.createBus = async (req, res) => {
       seatLayout
     } = req.body;
 
-    // 1. FIND OWNER PROFILE
     const owner = await prisma.owner.findUnique({
       where: {
         userId: req.user.id
@@ -28,7 +27,6 @@ exports.createBus = async (req, res) => {
       return errorResponse(res, "Owner profile not found", 404);
     }
 
-    // 2. CREATE BUS
     const bus = await prisma.bus.create({
       data: {
         licensePlate,
@@ -43,9 +41,8 @@ exports.createBus = async (req, res) => {
       }
     });
 
-    // 3. AUTO GENERATE SEATS
     const seatData = Array.from(
-      { length: seatCount },
+      { length: Number(seatCount) },
       (_, i) => ({
         seatNumber: `S${i + 1}`,
         busId: bus.id,
@@ -74,7 +71,6 @@ exports.getBuses = async (req, res) => {
   try {
     let buses;
 
-    // ADMIN: SEE ALL
     if (req.user.role === "admin") {
       buses = await prisma.bus.findMany({
         include: {
@@ -85,10 +81,7 @@ exports.getBuses = async (req, res) => {
           seats: true
         }
       });
-    }
-
-    // OWNER: SEE OWN BUSES ONLY
-    else if (req.user.role === "owner") {
+    } else if (req.user.role === "owner") {
 
       const owner = await prisma.owner.findUnique({
         where: {
@@ -111,16 +104,16 @@ exports.getBuses = async (req, res) => {
           seats: true
         }
       });
-    }
 
-    // OTHER USERS (OPTIONAL)
-    else {
+    } else {
+
       buses = await prisma.bus.findMany({
         include: {
           route: true,
           seats: true
         }
       });
+
     }
 
     return successResponse(
@@ -167,12 +160,38 @@ exports.getBusById = async (req, res) => {
   }
 };
 
+// ======================= GET BUSES BY ROUTE =======================
+exports.getBusesByRoute = async (req, res) => {
+  try {
+    const { routeId } = req.params;
+
+    const buses = await prisma.bus.findMany({
+      where: {
+        routeId: parseInt(routeId)
+      },
+      include: {
+        route: true,
+        seats: true,
+        owner: true
+      }
+    });
+
+    return successResponse(
+      res,
+      "Buses fetched successfully",
+      buses
+    );
+
+  } catch (err) {
+    return errorResponse(res, err.message);
+  }
+};
+
 // ======================= DELETE BUS =======================
 exports.deleteBus = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // delete seats first
     await prisma.seat.deleteMany({
       where: {
         busId: parseInt(id)
