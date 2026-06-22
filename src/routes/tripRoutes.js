@@ -7,41 +7,25 @@ const { authorizeRoles } = require("../middleware/roleMiddleware");
 
 // ======================================================
 // SEARCH TRIPS
-// passenger/owner/admin
+// passenger / owner / admin
 // /api/trips/search?start=Colombo&end=Kandy&date=2026-06-22
 // ======================================================
-router.get(
-  "/search",
-  authenticate,
-  tripController.searchTrips
-);
+router.get("/search", authenticate, tripController.searchTrips);
 
 // ======================================================
 // GET ALL TRIPS
 // ======================================================
-router.get(
-  "/",
-  authenticate,
-  tripController.getTrips
-);
+router.get("/", authenticate, tripController.getTrips);
 
 // ======================================================
 // GET TRIPS BY BUS
 // ======================================================
-router.get(
-  "/bus/:busId",
-  authenticate,
-  tripController.getTripsByBus
-);
+router.get("/bus/:busId", authenticate, tripController.getTripsByBus);
 
 // ======================================================
 // GET SINGLE TRIP
 // ======================================================
-router.get(
-  "/:id",
-  authenticate,
-  tripController.getTripById
-);
+router.get("/:id", authenticate, tripController.getTripById);
 
 // ======================================================
 // CREATE TRIP

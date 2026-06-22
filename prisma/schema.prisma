@@ -36,7 +36,7 @@ model Bus {
   category   String
   imageUrl   String?
   seatCount  Int
-  seatLayout String
+ seatLayout String
 
   routeId Int?
   route   Route? @relation(fields: [routeId], references: [id])
@@ -55,7 +55,6 @@ model Bus {
 
   createdAt DateTime @default(now())
 }
-
 model Driver {
   id            Int     @id @default(autoincrement())
   licenseNumber String
@@ -69,18 +68,17 @@ model Driver {
 }
 
 model Route {
-  id            Int    @id @default(autoincrement())
-  routeNumber   String
-  startLocation String
-  endLocation   String
-  departureTime String
-  arrivalTime   String
+  id                Int      @id @default(autoincrement())
+  routeNumber       String
+  routePermitNumber String   @unique
+  startLocation     String
+  endLocation       String
+  distanceKm        Float?
 
-  buses      Bus[]
-  distanceKm Float?
-  trips      Trip[]
+  buses             Bus[]
+  trips             Trip[]
 
-  createdAt DateTime @default(now())
+  createdAt         DateTime @default(now())
 }
 
 model GPSLog {

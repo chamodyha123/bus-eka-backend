@@ -8,7 +8,7 @@ export default function OwnerDashboard() {
       <div className="mb-4">
         <h1 className="fw-bold">Owner Dashboard</h1>
         <p className="text-muted mb-0">
-          Manage your buses, trips, drivers, revenue, and schedule updates.
+          Manage your buses, routes, trips, drivers, revenue, and schedule updates.
         </p>
       </div>
 
@@ -28,6 +28,26 @@ export default function OwnerDashboard() {
                 className="btn btn-primary w-100"
               >
                 Manage Buses
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* MANAGE ROUTES */}
+        <div className="col-md-6 col-lg-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body text-center p-4">
+              <div className="mb-3 fs-1">🛣️</div>
+              <h5 className="fw-bold">Manage Routes</h5>
+              <p className="text-muted small">
+                Create, update, and manage bus routes, route numbers, and timings.
+              </p>
+
+              <Link
+                href="/dashboard/owner/routes"
+                className="btn btn-secondary w-100"
+              >
+                Manage Routes
               </Link>
             </div>
           </div>

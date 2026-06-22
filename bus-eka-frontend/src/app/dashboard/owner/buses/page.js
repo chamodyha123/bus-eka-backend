@@ -16,8 +16,7 @@ export default function OwnerBusesPage() {
     category: "",
     seatCount: "",
     seatLayout: "2x2",
-    imageUrl: "",
-    routeId: ""
+    imageUrl: ""
   });
 
   useEffect(() => {
@@ -46,8 +45,7 @@ export default function OwnerBusesPage() {
       category: "",
       seatCount: "",
       seatLayout: "2x2",
-      imageUrl: "",
-      routeId: ""
+      imageUrl: ""
     });
   };
 
@@ -72,8 +70,7 @@ export default function OwnerBusesPage() {
         category: form.category,
         seatCount: Number(form.seatCount),
         seatLayout: form.seatLayout,
-        imageUrl: form.imageUrl || null,
-        routeId: form.routeId ? Number(form.routeId) : null
+        imageUrl: form.imageUrl || null
       };
 
       if (editingBusId) {
@@ -101,9 +98,9 @@ export default function OwnerBusesPage() {
       category: bus.category || "",
       seatCount: bus.seatCount || "",
       seatLayout: bus.seatLayout || "2x2",
-      imageUrl: bus.imageUrl || "",
-      routeId: bus.routeId || ""
+      imageUrl: bus.imageUrl || ""
     });
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -125,6 +122,7 @@ export default function OwnerBusesPage() {
     <div className="container mt-4">
       <h2 className="mb-4">Manage Buses</h2>
 
+      {/* FORM */}
       <div className="card shadow-sm mb-4">
         <div className="card-body">
           <h5 className="mb-3">{editingBusId ? "Edit Bus" : "Add New Bus"}</h5>
@@ -150,8 +148,11 @@ export default function OwnerBusesPage() {
                 name="routePermitNumber"
                 value={form.routePermitNumber}
                 onChange={handleChange}
-                placeholder="Optional"
+                placeholder="Enter route permit number"
               />
+              <small className="text-muted">
+                Enter the route permit number used in the Route table.
+              </small>
             </div>
 
             <div className="col-md-4">
@@ -216,18 +217,6 @@ export default function OwnerBusesPage() {
               />
             </div>
 
-            <div className="col-md-6">
-              <label className="form-label">Route ID</label>
-              <input
-                type="number"
-                className="form-control"
-                name="routeId"
-                value={form.routeId}
-                onChange={handleChange}
-                placeholder="Optional route ID"
-              />
-            </div>
-
             <div className="col-12 d-flex gap-2">
               <button className="btn btn-primary" onClick={handleSubmit}>
                 {editingBusId ? "Update Bus" : "Create Bus"}
@@ -243,6 +232,7 @@ export default function OwnerBusesPage() {
         </div>
       </div>
 
+      {/* BUS LIST */}
       <div className="card shadow-sm">
         <div className="card-body">
           <h5 className="mb-3">My Buses</h5>
@@ -268,14 +258,31 @@ export default function OwnerBusesPage() {
                     <div className="card-body">
                       <h5 className="card-title">{bus.licensePlate}</h5>
 
-                      <p className="mb-1"><strong>Type:</strong> {bus.busType}</p>
-                      <p className="mb-1"><strong>Category:</strong> {bus.category}</p>
-                      <p className="mb-1"><strong>Seats:</strong> {bus.seatCount}</p>
-                      <p className="mb-1"><strong>Layout:</strong> {bus.seatLayout}</p>
+                      <p className="mb-1">
+                        <strong>Type:</strong> {bus.busType}
+                      </p>
+
+                      <p className="mb-1">
+                        <strong>Category:</strong> {bus.category}
+                      </p>
+
+                      <p className="mb-1">
+                        <strong>Seats:</strong> {bus.seatCount}
+                      </p>
+
+                      <p className="mb-1">
+                        <strong>Layout:</strong> {bus.seatLayout}
+                      </p>
+
+                      <p className="mb-1">
+                        <strong>Route Permit:</strong>{" "}
+                        {bus.routePermitNumber || "N/A"}
+                      </p>
+
                       <p className="mb-0">
                         <strong>Route:</strong>{" "}
                         {bus.route
-                          ? `${bus.route.startLocation} → ${bus.route.endLocation}`
+                          ? `${bus.route.routeNumber} - ${bus.route.startLocation} → ${bus.route.endLocation}`
                           : "No route assigned"}
                       </p>
                     </div>

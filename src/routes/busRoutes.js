@@ -2,11 +2,27 @@ const express = require("express");
 const router = express.Router();
 
 const busController = require("../controllers/busController");
-
 const { authenticate } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
 
-// ================= CREATE BUS =================
+// ======================================================
+// GET ALL BUSES
+// ======================================================
+router.get("/", authenticate, busController.getBuses);
+
+// ======================================================
+// GET BUSES BY ROUTE
+// ======================================================
+router.get("/route/:routeId", authenticate, busController.getBusesByRoute);
+
+// ======================================================
+// GET SINGLE BUS
+// ======================================================
+router.get("/:id", authenticate, busController.getBusById);
+
+// ======================================================
+// CREATE BUS
+// ======================================================
 router.post(
   "/",
   authenticate,
@@ -14,28 +30,19 @@ router.post(
   busController.createBus
 );
 
-// ================= GET ALL BUSES =================
-router.get(
-  "/",
-  authenticate,
-  busController.getBuses
-);
-
-// ================= GET BUSES BY ROUTE =================
-router.get(
-  "/route/:routeId",
-  authenticate,
-  busController.getBusesByRoute
-);
-
-// ================= GET SINGLE BUS =================
-router.get(
+// ======================================================
+// UPDATE BUS
+// ======================================================
+router.put(
   "/:id",
   authenticate,
-  busController.getBusById
+  authorizeRoles("admin", "owner"),
+  busController.updateBus
 );
 
-// ================= DELETE BUS =================
+// ======================================================
+// DELETE BUS
+// ======================================================
 router.delete(
   "/:id",
   authenticate,

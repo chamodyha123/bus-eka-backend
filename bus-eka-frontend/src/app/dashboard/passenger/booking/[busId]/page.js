@@ -85,9 +85,7 @@ export default function BookingPage() {
 
       setSeats((prev) =>
         prev.map((s) =>
-          s.id === seat.id
-            ? { ...s, status: "AVAILABLE" }
-            : s
+          s.id === seat.id ? { ...s, status: "AVAILABLE" } : s
         )
       );
 
@@ -108,9 +106,7 @@ export default function BookingPage() {
 
       setSeats((prev) =>
         prev.map((s) =>
-          s.id === seat.id
-            ? { ...s, status: "LOCKED" }
-            : s
+          s.id === seat.id ? { ...s, status: "LOCKED" } : s
         )
       );
     } catch (err) {
@@ -146,7 +142,6 @@ export default function BookingPage() {
       }
 
       alert("Booking created successfully");
-
       router.push(`/dashboard/passenger/booking/success/${bookingId}`);
     } catch (err) {
       console.error(err);
@@ -155,6 +150,14 @@ export default function BookingPage() {
       setLoading(false);
     }
   };
+
+  const selectedSeatNumbers = seats
+    .filter((seat) => selectedSeats.includes(seat.id))
+    .map((seat) => seat.seatNumber);
+
+  const totalAmount = selectedTrip
+    ? Number(selectedTrip.price || 0) * selectedSeats.length
+    : 0;
 
   return (
     <div className="container mt-4">
@@ -176,8 +179,7 @@ export default function BookingPage() {
 
             {bus.route && (
               <p className="mb-0">
-                <strong>Route:</strong> {bus.route.startLocation} →{" "}
-                {bus.route.endLocation}
+                <strong>Route:</strong> {bus.route.startLocation} → {bus.route.endLocation}
               </p>
             )}
           </div>
@@ -199,9 +201,7 @@ export default function BookingPage() {
                 <div key={trip.id} className="col-md-6 mb-3">
                   <div
                     className={`card h-100 ${
-                      selectedTrip?.id === trip.id
-                        ? "border-primary"
-                        : ""
+                      selectedTrip?.id === trip.id ? "border-primary" : ""
                     }`}
                   >
                     <div className="card-body">
@@ -210,13 +210,18 @@ export default function BookingPage() {
                       </h6>
 
                       <p className="mb-1">
-                        <strong>Departure:</strong>{" "}
-                        {new Date(trip.departureTime).toLocaleString()}
+                        <strong>Date:</strong>{" "}
+                        {trip.tripDate
+                          ? new Date(trip.tripDate).toLocaleDateString()
+                          : "N/A"}
                       </p>
 
                       <p className="mb-1">
-                        <strong>Arrival:</strong>{" "}
-                        {new Date(trip.arrivalTime).toLocaleString()}
+                        <strong>Departure:</strong> {trip.departureTime}
+                      </p>
+
+                      <p className="mb-1">
+                        <strong>Arrival:</strong> {trip.arrivalTime}
                       </p>
 
                       <p className="mb-3">
@@ -229,11 +234,12 @@ export default function BookingPage() {
                             ? "btn-success"
                             : "btn-outline-primary"
                         }`}
-                        onClick={() => setSelectedTrip(trip)}
+                        onClick={() => {
+                          setSelectedTrip(trip);
+                          setSelectedSeats([]);
+                        }}
                       >
-                        {selectedTrip?.id === trip.id
-                          ? "Selected"
-                          : "Select Trip"}
+                        {selectedTrip?.id === trip.id ? "Selected" : "Select Trip"}
                       </button>
                     </div>
                   </div>
@@ -299,20 +305,21 @@ export default function BookingPage() {
           </p>
 
           <p className="mb-2">
+            <strong>Trip Date:</strong>{" "}
+            {selectedTrip?.tripDate
+              ? new Date(selectedTrip.tripDate).toLocaleDateString()
+              : "N/A"}
+          </p>
+
+          <p className="mb-2">
             <strong>Selected Seats:</strong>{" "}
-            {selectedSeats.length === 0
-              ? "No seats selected"
-              : seats
-                  .filter((seat) => selectedSeats.includes(seat.id))
-                  .map((seat) => seat.seatNumber)
-                  .join(", ")}
+            {selectedSeatNumbers.length > 0
+              ? selectedSeatNumbers.join(", ")
+              : "No seats selected"}
           </p>
 
           <p className="mb-3">
-            <strong>Total:</strong>{" "}
-            {selectedTrip
-              ? `Rs. ${selectedTrip.price * selectedSeats.length}`
-              : "Rs. 0"}
+            <strong>Total:</strong> Rs. {totalAmount}
           </p>
 
           <button
