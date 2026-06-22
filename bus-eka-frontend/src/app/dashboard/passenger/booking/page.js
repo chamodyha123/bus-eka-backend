@@ -10,6 +10,7 @@ export default function BookingSearchPage() {
 
   const [routes, setRoutes] = useState([]);
   const [buses, setBuses] = useState([]);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
 
   const router = useRouter();
 
@@ -21,26 +22,27 @@ export default function BookingSearchPage() {
 
       setRoutes(res.data.data || []);
       setBuses([]);
+      setSelectedRouteId(null);
     } catch (err) {
       console.log(err);
+      alert("Failed to search routes");
     }
   };
 
   const loadBuses = async (routeId) => {
     try {
-      const res = await api.get(
-        `/buses/route/${routeId}`
-      );
+      const res = await api.get(`/buses/route/${routeId}`);
 
+      setSelectedRouteId(routeId);
       setBuses(res.data.data || []);
     } catch (err) {
       console.log(err);
+      alert("Failed to load buses");
     }
   };
 
   return (
     <div className="container mt-4">
-
       <h2>Book Seats</h2>
 
       <div className="row mb-4">
@@ -72,18 +74,13 @@ export default function BookingSearchPage() {
         </div>
       </div>
 
+      {/* ROUTES */}
       {routes.map((route) => (
-        <div key={route.id} className="card mb-3">
+        <div key={route.id} className="card mb-3 shadow-sm">
           <div className="card-body">
-
-            <h5>
-              Route {route.routeNumber}
-            </h5>
-
-            <p>
-              {route.startLocation}
-              {" → "}
-              {route.endLocation}
+            <h5>Route {route.routeNumber}</h5>
+            <p className="mb-3">
+              {route.startLocation} → {route.endLocation}
             </p>
 
             <button
@@ -92,32 +89,49 @@ export default function BookingSearchPage() {
             >
               View Buses
             </button>
-
           </div>
         </div>
       ))}
 
-      {buses.map((bus) => (
-        <div key={bus.id} className="card mb-3">
-          <div className="card-body">
+      {/* BUSES */}
+      {selectedRouteId && (
+        <>
+          <h4 className="mt-4 mb-3">Available Buses</h4>
 
-            <h5>{bus.licensePlate}</h5>
+          {buses.length === 0 ? (
+            <div className="alert alert-warning">
+              No buses found for this route
+            </div>
+          ) : (
+            buses.map((bus) => (
+              <div key={bus.id} className="card mb-3 shadow-sm">
+                <div className="card-body">
+                  <h5>{bus.licensePlate}</h5>
 
-            <button
-              className="btn btn-primary"
-              onClick={() =>
-                router.push(
-                  `/dashboard/passenger/booking/${bus.id}`
-                )
-              }
-            >
-              Book Seats
-            </button>
+                  <p className="mb-1">
+                    <strong>Category:</strong> {bus.category || "N/A"}
+                  </p>
 
-          </div>
-        </div>
-      ))}
+                  <p className="mb-3">
+                    <strong>Type:</strong> {bus.busType || "N/A"}
+                  </p>
 
+                  <button
+                    className="btn btn-primary"
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/passenger/booking/${bus.id}`
+                      )
+                    }
+                  >
+                    Book Seats
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </>
+      )}
     </div>
   );
 }

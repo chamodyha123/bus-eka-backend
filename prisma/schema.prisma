@@ -114,22 +114,20 @@ model CrowdReport {
 }
 
 model EmergencyReport {
-  id            Int     @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   emergencyType String
-  description   String?
+  description   String
+  latitude      Float?
+  longitude     Float?
 
-  latitude  Float?
-  longitude Float?
+  userId        Int?
+  user          User?    @relation(fields: [userId], references: [id])
 
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
+  busId         Int
+  bus           Bus      @relation(fields: [busId], references: [id])
 
-  busId Int?
-  bus   Bus? @relation(fields: [busId], references: [id])
-
-  createdAt DateTime @default(now())
+  createdAt     DateTime @default(now())
 }
-
 model Notification {
   id      Int    @id @default(autoincrement())
   title   String
@@ -185,20 +183,29 @@ model Seat {
 }
 
 model Trip {
-  id Int @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
+  tripCode       String    @unique
+  tripDate       DateTime
 
-  busId Int
-  bus   Bus @relation(fields: [busId], references: [id])
+  busId          Int
+  routeId        Int?
 
-  routeId Int
-  route   Route @relation(fields: [routeId], references: [id])
+  departureCity  String
+  arrivalCity    String
 
-  travelDate DateTime
-  price      Float
+  departureTime  DateTime
+  arrivalTime    DateTime
 
-  bookings Booking[]
+  price          Float     @default(0)
+  status         String    @default("ACTIVE")
+  isActive       Boolean   @default(true)
 
-  createdAt DateTime @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bus            Bus       @relation(fields: [busId], references: [id])
+  route          Route?    @relation(fields: [routeId], references: [id])
+  bookings       Booking[]
 }
 model Booking {
   id Int @id @default(autoincrement())

@@ -57,6 +57,14 @@ export default function PassengerDashboard() {
           </Link>
         </div>
 
+        <div className="col-md-4 mb-3">
+  <Link href="/dashboard/passenger/profile">
+    <div className="card p-4 text-center">
+      My Profile
+    </div>
+  </Link>
+</div>
+
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useContext } from "react";
 import api from "@/lib/api";
 import { AuthContext } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -23,6 +24,7 @@ export default function Login() {
 
       const { user, token } = res.data;
 
+      // ✅ FIXED: correct usage
       login(user, token);
 
       const roleRoutes = {
@@ -35,52 +37,58 @@ export default function Login() {
       router.push(roleRoutes[user.role] || "/dashboard");
     } catch (err) {
       console.error(err);
-      alert("Login failed");
+      alert(err.response?.data?.message || "Login failed");
     }
   };
 
- return (
-  <div className="min-h-screen flex items-center justify-center bg-slate-100">
-    <form
-      onSubmit={handleLogin}
-      className="bg-white p-8 rounded-xl shadow-lg w-96"
-    >
-      <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">
-        Bus Eka LK
-      </h1>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 via-blue-500 to-yellow-400">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
 
-      <input
-        className="border p-3 w-full mb-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-bold text-purple-700">
+            Bus Eka LK
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Smart Bus Management System
+          </p>
+        </div>
 
-      <input
-        className="border p-3 w-full mb-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+        <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Enter Email"
+            className="w-full border p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-      <button
-        type="submit"
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-semibold transition"
-      >
-        Login
-      </button>
+          <input
+            type="password"
+            placeholder="Enter Password"
+            className="w-full border p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-      <p className="mt-4 text-center text-gray-600">
-        New User?
-        <a
-          href="/register"
-          className="text-purple-600 font-bold ml-2 hover:text-purple-700"
-        >
-          Register Here
-        </a>
-      </p>
-    </form>
-  </div>
-);
+          <button
+            type="submit"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition"
+          >
+            Login
+          </button>
+        </form>
+
+        <div className="text-center mt-5">
+          <p className="text-gray-600">New User?</p>
+          <Link href="/register" className="text-blue-600 font-semibold">
+            Register Here
+          </Link>
+        </div>
+
+      </div>
+    </div>
+  );
 }

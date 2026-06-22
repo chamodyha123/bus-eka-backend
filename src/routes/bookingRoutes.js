@@ -13,4 +13,6 @@ router.get("/", authenticate, bookingController.getUserBookings);
 // CANCEL BOOKING
 router.delete("/:bookingId", authenticate, bookingController.cancelBooking);
 
+router.get("/:id", authenticate, bookingController.getBookingById);
+
 module.exports = router;

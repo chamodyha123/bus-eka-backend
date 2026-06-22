@@ -4,12 +4,11 @@ import { createContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
 
-// safe JSON parser
 const safeParse = (value) => {
   try {
     if (!value || value === "undefined") return null;
     return JSON.parse(value);
-  } catch (err) {
+  } catch {
     return null;
   }
 };
@@ -18,33 +17,23 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
 
-  // Load from localStorage (client-side only)
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("token");
 
     const parsedUser = safeParse(storedUser);
 
-    if (parsedUser) {
-      setUser(parsedUser);
-    } else {
-      localStorage.removeItem("user");
-    }
-
-    if (storedToken && storedToken !== "undefined") {
-      setToken(storedToken);
-    } else {
-      localStorage.removeItem("token");
-    }
+    if (parsedUser) setUser(parsedUser);
+    if (storedToken) setToken(storedToken);
   }, []);
 
-  const login = (data) => {
-    setUser(data.user || null);
-    setToken(data.token || null);
+  // ✅ FIXED LOGIN (2 parameters properly used)
+  const login = (userData, userToken) => {
+    setUser(userData);
+    setToken(userToken);
 
-    // safely store
-    localStorage.setItem("user", JSON.stringify(data.user || null));
-    localStorage.setItem("token", data.token || "");
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", userToken);
   };
 
   const logout = () => {
@@ -53,6 +42,8 @@ export function AuthProvider({ children }) {
 
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+
+    window.location.href = "/login";
   };
 
   return (
