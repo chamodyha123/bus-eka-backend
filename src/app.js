@@ -19,6 +19,7 @@ const bookingRoutes = require("./routes/bookingRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
 const tripRoutes = require("./routes/tripRoutes");
+const tripTemplateRoutes = require("./routes/tripTemplateRoutes");
 
 
 
@@ -55,6 +56,8 @@ app.use("/api/tickets", ticketRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payment", require("./routes/paymentRoutes"));
 app.use("/api/trips", tripRoutes);
+
+app.use("/api/trip-templates", tripTemplateRoutes);
 
 // TEST ROUTE
 app.get("/", (req, res) => {

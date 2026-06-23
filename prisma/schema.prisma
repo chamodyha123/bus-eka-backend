@@ -36,7 +36,7 @@ model Bus {
   category   String
   imageUrl   String?
   seatCount  Int
- seatLayout String
+  seatLayout String
 
   routeId Int?
   route   Route? @relation(fields: [routeId], references: [id])
@@ -52,9 +52,11 @@ model Bus {
   emergencyReports EmergencyReport[]
   seats            Seat[]
   trips            Trip[]
+  tripTemplates    TripTemplate[]
 
   createdAt DateTime @default(now())
 }
+
 model Driver {
   id            Int     @id @default(autoincrement())
   licenseNumber String
@@ -68,17 +70,18 @@ model Driver {
 }
 
 model Route {
-  id                Int      @id @default(autoincrement())
+  id                Int    @id @default(autoincrement())
   routeNumber       String
-  routePermitNumber String   @unique
+  routePermitNumber String @unique
   startLocation     String
   endLocation       String
   distanceKm        Float?
 
-  buses             Bus[]
-  trips             Trip[]
+  buses         Bus[]
+  trips         Trip[]
+  tripTemplates TripTemplate[]
 
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model GPSLog {
@@ -112,20 +115,21 @@ model CrowdReport {
 }
 
 model EmergencyReport {
-  id            Int      @id @default(autoincrement())
+  id            Int    @id @default(autoincrement())
   emergencyType String
   description   String
   latitude      Float?
   longitude     Float?
 
-  userId        Int?
-  user          User?    @relation(fields: [userId], references: [id])
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 
-  busId         Int
-  bus           Bus      @relation(fields: [busId], references: [id])
+  busId Int
+  bus   Bus @relation(fields: [busId], references: [id])
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 }
+
 model Notification {
   id      Int    @id @default(autoincrement())
   title   String
@@ -181,38 +185,65 @@ model Seat {
 }
 
 model Trip {
-  id             Int       @id @default(autoincrement())
-  tripCode       String    @unique
-  tripDate       DateTime
+  id       Int      @id @default(autoincrement())
+  tripCode String   @unique
+  tripDate DateTime
 
-  busId          Int
-  routeId        Int?
+  busId      Int
+  routeId    Int?
+  templateId Int?
 
-  departureCity  String
-  arrivalCity    String
+  departureCity String
+  arrivalCity   String
 
-  departureTime  DateTime
-  arrivalTime    DateTime
+  departureTime DateTime
+  arrivalTime   DateTime
 
-  price          Float     @default(0)
-  status         String    @default("ACTIVE")
-  isActive       Boolean   @default(true)
+  price    Float   @default(0)
+  status   String  @default("ACTIVE")
+  isActive Boolean @default(true)
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  bus            Bus       @relation(fields: [busId], references: [id])
-  route          Route?    @relation(fields: [routeId], references: [id])
-  bookings       Booking[]
+  bus      Bus           @relation(fields: [busId], references: [id])
+  route    Route?        @relation(fields: [routeId], references: [id])
+  template TripTemplate? @relation(fields: [templateId], references: [id])
+
+  bookings Booking[]
 }
+
+model TripTemplate {
+  id Int @id @default(autoincrement())
+
+  busId   Int
+  routeId Int
+
+  departureCity String
+  arrivalCity   String
+
+  departureTime String
+  arrivalTime   String
+
+  price    Float   @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bus   Bus    @relation(fields: [busId], references: [id])
+  route Route  @relation(fields: [routeId], references: [id])
+  trips Trip[]
+}
+
 model Booking {
   id Int @id @default(autoincrement())
 
   userId Int
-  user User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
 
   tripId Int
-  trip Trip @relation(fields: [tripId], references: [id])
+  trip   Trip @relation(fields: [tripId], references: [id])
 
   seats Seat[]
 
