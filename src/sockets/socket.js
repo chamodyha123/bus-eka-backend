@@ -3,38 +3,143 @@ const { Server } = require("socket.io");
 let io;
 
 const initSocket = (server) => {
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173"
+  ].filter(Boolean);
+
   io = new Server(server, {
     cors: {
-      origin: "*"
-    }
+      origin: allowedOrigins,
+      credentials: true,
+      methods: ["GET", "POST"]
+    },
+
+    transports: ["websocket", "polling"]
   });
+
+  console.log("🔌 Socket.IO initialized");
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("🟢 User connected:", socket.id);
 
-    // Join bus-specific room
+    // ========================================
+    // JOIN BUS ROOM
+    // ========================================
+
     socket.on("joinBusRoom", (busId) => {
-      socket.join(`bus_${busId}`);
-      console.log(`Socket ${socket.id} joined bus_${busId}`);
+      if (!busId) {
+        console.log("⚠️ joinBusRoom called without busId");
+        return;
+      }
+
+      const roomName = `bus_${busId}`;
+
+      socket.join(roomName);
+
+      console.log(
+        `🚌 Socket ${socket.id} joined ${roomName}`
+      );
+
+      socket.emit("joinedBusRoom", {
+        success: true,
+        busId,
+        room: roomName
+      });
     });
 
-    // Optional: leave room
+    // ========================================
+    // LEAVE BUS ROOM
+    // ========================================
+
     socket.on("leaveBusRoom", (busId) => {
-      socket.leave(`bus_${busId}`);
-      console.log(`Socket ${socket.id} left bus_${busId}`);
+      if (!busId) {
+        return;
+      }
+
+      const roomName = `bus_${busId}`;
+
+      socket.leave(roomName);
+
+      console.log(
+        `🚪 Socket ${socket.id} left ${roomName}`
+      );
     });
 
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
+    // ========================================
+    // OPTIONAL: JOIN TRIP ROOM
+    // ========================================
+
+    socket.on("joinTripRoom", (tripId) => {
+      if (!tripId) {
+        return;
+      }
+
+      const roomName = `trip_${tripId}`;
+
+      socket.join(roomName);
+
+      console.log(
+        `🚍 Socket ${socket.id} joined ${roomName}`
+      );
+    });
+
+    // ========================================
+    // LEAVE TRIP ROOM
+    // ========================================
+
+    socket.on("leaveTripRoom", (tripId) => {
+      if (!tripId) {
+        return;
+      }
+
+      const roomName = `trip_${tripId}`;
+
+      socket.leave(roomName);
+
+      console.log(
+        `🚪 Socket ${socket.id} left ${roomName}`
+      );
+    });
+
+    // ========================================
+    // DISCONNECT
+    // ========================================
+
+    socket.on("disconnect", (reason) => {
+      console.log(
+        `🔴 User disconnected: ${socket.id} | Reason: ${reason}`
+      );
+    });
+
+    // ========================================
+    // SOCKET ERROR
+    // ========================================
+
+    socket.on("error", (error) => {
+      console.error(
+        `❌ Socket error (${socket.id}):`,
+        error
+      );
     });
   });
+
+  return io;
 };
 
-// Getter for emitting events from controllers
+// ========================================
+// GET SOCKET.IO INSTANCE
+// ========================================
+
 const getIO = () => {
   if (!io) {
-    throw new Error("Socket.io not initialized");
+    throw new Error(
+      "Socket.IO has not been initialized. Call initSocket(server) first."
+    );
   }
+
   return io;
 };
 

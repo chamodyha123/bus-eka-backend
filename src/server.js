@@ -2,23 +2,37 @@ const http = require("http");
 const app = require("./app");
 const { initSocket } = require("./sockets/socket");
 
+// ========================================
+// SERVER CONFIGURATION
+// ========================================
+
 const PORT = process.env.PORT || 5000;
 const HOST = "0.0.0.0";
 
-// Jobs
+// ========================================
+// JOBS
+// ========================================
+
 const unlockExpiredSeats = require("./jobs/seatLockScheduler");
-const { startTripGenerationJob } = require("./jobs/tripGenerationJob");
+const {
+  startTripGenerationJob
+} = require("./jobs/tripGenerationJob");
+
+// ========================================
+// CREATE HTTP SERVER
+// ========================================
 
 const server = http.createServer(app);
 
-// Initialize Socket.IO
+// ========================================
+// INITIALIZE SOCKET.IO
+// ========================================
+
 initSocket(server);
 
-/*
- * ==============================
- * START BACKGROUND JOBS SAFELY
- * ==============================
- */
+// ========================================
+// START BACKGROUND JOBS
+// ========================================
 
 async function startJobs() {
   try {
@@ -28,61 +42,72 @@ async function startJobs() {
 
     console.log("🚍 Trip generation job started");
   } catch (err) {
-    console.error("❌ Failed to start jobs:", err.message);
+    console.error(
+      "❌ Failed to start jobs:",
+      err.message
+    );
   }
 }
 
-// Start jobs after server setup
 startJobs();
 
-/*
- * ==============================
- * SEAT UNLOCK SCHEDULER
- * ==============================
- */
+// ========================================
+// SEAT UNLOCK SCHEDULER
+// ========================================
 
 const seatUnlockInterval = setInterval(async () => {
   try {
     const unlockedCount = await unlockExpiredSeats();
 
     if (unlockedCount > 0) {
-      console.log(`🔓 Unlocked ${unlockedCount} expired seat(s)`);
+      console.log(
+        `🔓 Unlocked ${unlockedCount} expired seat(s)`
+      );
     }
   } catch (err) {
-    console.error("❌ Seat unlock scheduler error:", err.message);
+    console.error(
+      "❌ Seat unlock scheduler error:",
+      err.message
+    );
   }
 }, 60000);
 
-/*
- * ==============================
- * START SERVER
- * ==============================
- */
+// ========================================
+// START SERVER
+// ========================================
 
 server.listen(PORT, HOST, () => {
   console.log("========================================");
   console.log("🚌 BUS EKA BACKEND");
   console.log("========================================");
   console.log(`🚀 Server running on ${HOST}:${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(
+    `🌍 Environment: ${
+      process.env.NODE_ENV || "development"
+    }`
+  );
   console.log("🔌 Socket.IO initialized");
   console.log("========================================");
 });
 
-/*
- * ==============================
- * GLOBAL ERROR HANDLERS
- * ==============================
- */
+// ========================================
+// UNHANDLED REJECTION
+// ========================================
 
 process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Rejection:", err);
 });
 
+// ========================================
+// UNCAUGHT EXCEPTION
+// ========================================
+
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 
-  console.log("💥 Shutting down server gracefully...");
+  console.log(
+    "💥 Shutting down server gracefully..."
+  );
 
   clearInterval(seatUnlockInterval);
 
@@ -91,14 +116,14 @@ process.on("uncaughtException", (err) => {
   });
 });
 
-/*
- * ==============================
- * GRACEFUL SHUTDOWN
- * ==============================
- */
+// ========================================
+// GRACEFUL SHUTDOWN
+// ========================================
 
 function gracefulShutdown(signal) {
-  console.log(`🛑 ${signal} received. Shutting down server...`);
+  console.log(
+    `🛑 ${signal} received. Shutting down server...`
+  );
 
   clearInterval(seatUnlockInterval);
 
@@ -107,19 +132,24 @@ function gracefulShutdown(signal) {
     process.exit(0);
   });
 
-  // Force shutdown if closing takes too long
+  // Force shutdown after 10 seconds
   setTimeout(() => {
-    console.error("⚠️ Forced shutdown after timeout");
+    console.error(
+      "⚠️ Forced shutdown after timeout"
+    );
+
     process.exit(1);
   }, 10000);
 }
 
-// Local Ctrl+C
+// ========================================
+// SHUTDOWN SIGNALS
+// ========================================
+
 process.on("SIGINT", () => {
   gracefulShutdown("SIGINT");
 });
 
-// Northflank / production shutdown
 process.on("SIGTERM", () => {
   gracefulShutdown("SIGTERM");
 });
