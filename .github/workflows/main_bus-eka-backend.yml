@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 jobs:
@@ -14,37 +15,63 @@ jobs:
       contents: read
 
     steps:
+      # -----------------------------------------
+      # Checkout repository
+      # -----------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -----------------------------------------
+      # Setup Node.js
+      # -----------------------------------------
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
-          cache: 'npm'
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: bus-eka-backend/package-lock.json
 
+      # -----------------------------------------
+      # Install dependencies
+      # -----------------------------------------
       - name: Install dependencies
+        working-directory: bus-eka-backend
         run: npm ci
 
+      # -----------------------------------------
+      # Generate Prisma Client
+      # -----------------------------------------
       - name: Generate Prisma Client
+        working-directory: bus-eka-backend
         run: npx prisma generate
 
+      # -----------------------------------------
+      # Build application
+      # -----------------------------------------
       - name: Build application
+        working-directory: bus-eka-backend
         run: npm run build --if-present
 
+      # -----------------------------------------
+      # Test application
+      # -----------------------------------------
       - name: Run tests
+        working-directory: bus-eka-backend
         run: npm run test --if-present
 
+      # -----------------------------------------
+      # Upload deployment artifact
+      # -----------------------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
-          include-hidden-files: true
-          retention-days: 1
+          path: bus-eka-backend
+
 
   deploy:
     runs-on: ubuntu-latest
+
     needs: build
 
     permissions:
@@ -52,11 +79,18 @@ jobs:
       contents: read
 
     steps:
+      # -----------------------------------------
+      # Download build artifact
+      # -----------------------------------------
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: bus-eka-backend
 
+      # -----------------------------------------
+      # Login to Azure
+      # -----------------------------------------
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -64,9 +98,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F7EF759558F044AAA82D2FF9BD4CB09D }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1126FD300D2344F2BBDB41E734BA2B87 }}
 
+      # -----------------------------------------
+      # Deploy to Azure App Service
+      # -----------------------------------------
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'bus-eka-backend'
-          slot-name: 'Production'
-          package: .
+          app-name: bus-eka-backend
+          slot-name: Production
+          package: bus-eka-backend
