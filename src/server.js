@@ -1,155 +1,189 @@
 const http = require("http");
+
 const app = require("./app");
-const { initSocket } = require("./sockets/socket");
 
-// ========================================
-// SERVER CONFIGURATION
-// ========================================
+const {
+  startBackgroundJobs,
+} = require("./jobs/backgroundJobs");
 
-const PORT = process.env.PORT || 5000;
+const {
+  Server: SocketIOServer,
+} = require("socket.io");
+
+const PORT = Number(
+  process.env.PORT || 8080
+);
+
 const HOST = "0.0.0.0";
 
-// ========================================
-// JOBS
-// ========================================
+const httpServer =
+  http.createServer(app);
 
-const unlockExpiredSeats = require("./jobs/seatLockScheduler");
-const {
-  startTripGenerationJob
-} = require("./jobs/tripGenerationJob");
-
-// ========================================
-// CREATE HTTP SERVER
-// ========================================
-
-const server = http.createServer(app);
-
-// ========================================
-// INITIALIZE SOCKET.IO
-// ========================================
-
-initSocket(server);
-
-// ========================================
-// START BACKGROUND JOBS
-// ========================================
-
-async function startJobs() {
-  try {
-    console.log("⏳ Starting background jobs...");
-
-    await startTripGenerationJob();
-
-    console.log("🚍 Trip generation job started");
-  } catch (err) {
-    console.error(
-      "❌ Failed to start jobs:",
-      err.message
-    );
+/**
+ * Socket.IO
+ */
+const io = new SocketIOServer(
+  httpServer,
+  {
+    cors: {
+      origin: "*",
+      methods: [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+      ],
+    },
   }
-}
+);
 
-startJobs();
+/**
+ * Make Socket.IO available
+ * throughout the application.
+ */
+app.set("io", io);
 
-// ========================================
-// SEAT UNLOCK SCHEDULER
-// ========================================
+/**
+ * Socket.IO connections.
+ */
+io.on("connection", (socket) => {
+  console.log(
+    `🔌 Socket connected: ${socket.id}`
+  );
 
-const seatUnlockInterval = setInterval(async () => {
-  try {
-    const unlockedCount = await unlockExpiredSeats();
+  socket.on(
+    "joinBus",
+    (busId) => {
+      if (busId) {
+        socket.join(`bus:${busId}`);
 
-    if (unlockedCount > 0) {
+        console.log(
+          `🚌 Socket ${socket.id} joined bus:${busId}`
+        );
+      }
+    }
+  );
+
+  socket.on(
+    "leaveBus",
+    (busId) => {
+      if (busId) {
+        socket.leave(`bus:${busId}`);
+      }
+    }
+  );
+
+  socket.on(
+    "joinTrip",
+    (tripId) => {
+      if (tripId) {
+        socket.join(`trip:${tripId}`);
+
+        console.log(
+          `🎫 Socket ${socket.id} joined trip:${tripId}`
+        );
+      }
+    }
+  );
+
+  socket.on(
+    "leaveTrip",
+    (tripId) => {
+      if (tripId) {
+        socket.leave(`trip:${tripId}`);
+      }
+    }
+  );
+
+  socket.on(
+    "disconnect",
+    () => {
       console.log(
-        `🔓 Unlocked ${unlockedCount} expired seat(s)`
+        `🔌 Socket disconnected: ${socket.id}`
       );
     }
-  } catch (err) {
+  );
+});
+
+/**
+ * Start HTTP server.
+ */
+httpServer.listen(
+  PORT,
+  HOST,
+  async () => {
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "🚌 BUS EKA BACKEND"
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      `🚀 Server running on ${HOST}:${PORT}`
+    );
+
+    console.log(
+      `🌍 Environment: ${
+        process.env.NODE_ENV || "development"
+      }`
+    );
+
+    console.log(
+      "🔌 Socket.IO initialized"
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    /**
+     * Start cron/background jobs.
+     */
+    await startBackgroundJobs();
+  }
+);
+
+/**
+ * Handle server errors.
+ */
+httpServer.on(
+  "error",
+  (error) => {
     console.error(
-      "❌ Seat unlock scheduler error:",
-      err.message
+      "❌ HTTP server error:",
+      error
     );
   }
-}, 60000);
+);
 
-// ========================================
-// START SERVER
-// ========================================
-
-server.listen(PORT, HOST, () => {
-  console.log("========================================");
-  console.log("🚌 BUS EKA BACKEND");
-  console.log("========================================");
-  console.log(`🚀 Server running on ${HOST}:${PORT}`);
+/**
+ * Graceful shutdown.
+ */
+async function shutdown(signal) {
   console.log(
-    `🌍 Environment: ${
-      process.env.NODE_ENV || "development"
-    }`
-  );
-  console.log("🔌 Socket.IO initialized");
-  console.log("========================================");
-});
-
-// ========================================
-// UNHANDLED REJECTION
-// ========================================
-
-process.on("unhandledRejection", (err) => {
-  console.error("❌ Unhandled Rejection:", err);
-});
-
-// ========================================
-// UNCAUGHT EXCEPTION
-// ========================================
-
-process.on("uncaughtException", (err) => {
-  console.error("❌ Uncaught Exception:", err);
-
-  console.log(
-    "💥 Shutting down server gracefully..."
+    `\n🛑 ${signal} received. Shutting down...`
   );
 
-  clearInterval(seatUnlockInterval);
-
-  server.close(() => {
-    process.exit(1);
-  });
-});
-
-// ========================================
-// GRACEFUL SHUTDOWN
-// ========================================
-
-function gracefulShutdown(signal) {
-  console.log(
-    `🛑 ${signal} received. Shutting down server...`
-  );
-
-  clearInterval(seatUnlockInterval);
-
-  server.close(() => {
-    console.log("✅ Server closed gracefully");
-    process.exit(0);
-  });
-
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    console.error(
-      "⚠️ Forced shutdown after timeout"
+  httpServer.close(() => {
+    console.log(
+      "✅ HTTP server closed."
     );
-
-    process.exit(1);
-  }, 10000);
+  });
 }
 
-// ========================================
-// SHUTDOWN SIGNALS
-// ========================================
+process.on(
+  "SIGTERM",
+  () => shutdown("SIGTERM")
+);
 
-process.on("SIGINT", () => {
-  gracefulShutdown("SIGINT");
-});
-
-process.on("SIGTERM", () => {
-  gracefulShutdown("SIGTERM");
-});
+process.on(
+  "SIGINT",
+  () => shutdown("SIGINT")
+);
