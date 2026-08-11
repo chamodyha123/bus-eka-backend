@@ -1,17 +1,24 @@
 {
   "name": "bus-eka-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Bus Eka - Sri Lankan Bus Tracking and Reservation Backend",
+  "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "bus",
+    "transportation",
+    "reservation",
+    "tracking",
+    "sri-lanka"
+  ],
+  "author": "Chamodyha Peshan",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
