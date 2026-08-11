@@ -3,6 +3,7 @@ const app = require("./app");
 const { initSocket } = require("./sockets/socket");
 
 const PORT = process.env.PORT || 5000;
+const HOST = "0.0.0.0";
 
 // Jobs
 const unlockExpiredSeats = require("./jobs/seatLockScheduler");
@@ -13,31 +14,33 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 initSocket(server);
 
-/**
+/*
  * ==============================
  * START BACKGROUND JOBS SAFELY
  * ==============================
  */
+
 async function startJobs() {
   try {
     console.log("⏳ Starting background jobs...");
 
     await startTripGenerationJob();
-    console.log("🚍 Trip generation job started");
 
+    console.log("🚍 Trip generation job started");
   } catch (err) {
     console.error("❌ Failed to start jobs:", err.message);
   }
 }
 
-// Start jobs AFTER server setup
+// Start jobs after server setup
 startJobs();
 
-/**
+/*
  * ==============================
  * SEAT UNLOCK SCHEDULER
  * ==============================
  */
+
 const seatUnlockInterval = setInterval(async () => {
   try {
     const unlockedCount = await unlockExpiredSeats();
@@ -50,20 +53,28 @@ const seatUnlockInterval = setInterval(async () => {
   }
 }, 60000);
 
-/**
+/*
  * ==============================
  * START SERVER
  * ==============================
  */
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+
+server.listen(PORT, HOST, () => {
+  console.log("========================================");
+  console.log("🚌 BUS EKA BACKEND");
+  console.log("========================================");
+  console.log(`🚀 Server running on ${HOST}:${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log("🔌 Socket.IO initialized");
+  console.log("========================================");
 });
 
-/**
+/*
  * ==============================
  * GLOBAL ERROR HANDLERS
  * ==============================
  */
+
 process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Rejection:", err);
 });
@@ -71,18 +82,23 @@ process.on("unhandledRejection", (err) => {
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 
-  // safer shutdown instead of immediate crash in production
   console.log("💥 Shutting down server gracefully...");
-  server.close(() => process.exit(1));
+
+  clearInterval(seatUnlockInterval);
+
+  server.close(() => {
+    process.exit(1);
+  });
 });
 
-/**
+/*
  * ==============================
- * GRACEFUL SHUTDOWN (CTRL+C)
+ * GRACEFUL SHUTDOWN
  * ==============================
  */
-process.on("SIGINT", () => {
-  console.log("🛑 Shutting down server...");
+
+function gracefulShutdown(signal) {
+  console.log(`🛑 ${signal} received. Shutting down server...`);
 
   clearInterval(seatUnlockInterval);
 
@@ -90,4 +106,20 @@ process.on("SIGINT", () => {
     console.log("✅ Server closed gracefully");
     process.exit(0);
   });
+
+  // Force shutdown if closing takes too long
+  setTimeout(() => {
+    console.error("⚠️ Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+}
+
+// Local Ctrl+C
+process.on("SIGINT", () => {
+  gracefulShutdown("SIGINT");
+});
+
+// Northflank / production shutdown
+process.on("SIGTERM", () => {
+  gracefulShutdown("SIGTERM");
 });
