@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 
 const adminController = require("../controllers/adminController");
-
 const { authenticate } = require("../middleware/authMiddleware");
 const admin = require("../middleware/adminMiddleware");
 
@@ -12,6 +11,8 @@ router.use(admin);
 
 // USERS
 router.get("/users", adminController.getUsers);
+router.put("/users/:id/role", adminController.updateUserRole);
+router.delete("/users/:id", adminController.deleteUser);
 
 // BUSES
 router.get("/buses", adminController.getBuses);
@@ -22,7 +23,7 @@ router.get("/routes", adminController.getRoutes);
 // EMERGENCY
 router.get("/emergency", adminController.getEmergencyReports);
 
-// ANALYTICS (basic now, expand later)
+// ANALYTICS
 router.get("/stats", adminController.getStats);
 
 module.exports = router;

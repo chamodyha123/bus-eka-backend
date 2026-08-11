@@ -5,52 +5,57 @@ const tripTemplateController = require("../controllers/tripTemplateController");
 const { authenticate } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
 
+// ======================================================
+// MIDDLEWARE SHORTCUT
+// ======================================================
+const protectAdminOwner = [
+  authenticate,
+  authorizeRoles("admin", "owner")
+];
+
+// ======================================================
 // GET ALL TEMPLATES
+// ======================================================
 router.get(
   "/",
-  authenticate,
-  authorizeRoles("admin", "owner"),
+  protectAdminOwner,
   tripTemplateController.getTripTemplates
 );
 
-// GET SINGLE TEMPLATE
-router.get(
-  "/:id",
-  authenticate,
-  authorizeRoles("admin", "owner"),
-  tripTemplateController.getTripTemplateById
-);
-
+// ======================================================
 // CREATE TEMPLATE
+// ======================================================
 router.post(
   "/",
-  authenticate,
-  authorizeRoles("admin", "owner"),
+  protectAdminOwner,
   tripTemplateController.createTripTemplate
 );
 
+// ======================================================
+// GET TEMPLATE BY ID
+// ======================================================
+router.get(
+  "/:id",
+  protectAdminOwner,
+  tripTemplateController.getTripTemplateById
+);
+
+// ======================================================
 // UPDATE TEMPLATE
+// ======================================================
 router.put(
   "/:id",
-  authenticate,
-  authorizeRoles("admin", "owner"),
+  protectAdminOwner,
   tripTemplateController.updateTripTemplate
 );
 
+// ======================================================
 // DELETE TEMPLATE
+// ======================================================
 router.delete(
   "/:id",
-  authenticate,
-  authorizeRoles("admin", "owner"),
+  protectAdminOwner,
   tripTemplateController.deleteTripTemplate
-);
-
-// GENERATE TODAY TRIPS FROM TEMPLATES
-router.post(
-  "/generate/today",
-  authenticate,
-  authorizeRoles("admin", "owner"),
-  tripTemplateController.generateTodayTripsFromTemplates
 );
 
 module.exports = router;

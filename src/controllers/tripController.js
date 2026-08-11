@@ -191,9 +191,12 @@ exports.deleteTrip = async (req, res) => {
 // ======================================================
 exports.generateTripsFromTemplates = async (req, res) => {
   try {
+    const { generateTripsForToday } = require("../services/tripService");
+    const trips = await generateTripsForToday();
     return res.status(200).json({
       success: true,
-      message: "Trip generation placeholder working (not implemented yet)"
+      message: `Generated/verified ${trips.length} active trip(s) for today`,
+      data: trips
     });
   } catch (err) {
     return res.status(500).json({

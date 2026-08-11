@@ -1,20 +1,15 @@
 const express = require("express");
 const router = express.Router();
+const paymentController = require("../controllers/paymentController");
+const { authenticate } = require("../middleware/authMiddleware");
 
-const controller = require("../controllers/paymentController");
+// Create PayHere payment request
+router.post("/create", authenticate, paymentController.createPayment);
 
-// CREATE PAYMENT (FRONTEND REDIRECT DATA)
-router.post("/create", controller.createPayment);
+// Mock payment endpoint (For instant demo checkout)
+router.post("/mock-pay", authenticate, paymentController.mockPayment);
 
-// PAYHERE CALLBACKS
-router.post("/notify", controller.payhereNotify);
-
-router.post("/success", (req, res) => {
-  res.send("Payment Success");
-});
-
-router.post("/fail", (req, res) => {
-  res.send("Payment Failed");
-});
+// PayHere notification webhook
+router.post("/notify", paymentController.payhereNotify);
 
 module.exports = router;

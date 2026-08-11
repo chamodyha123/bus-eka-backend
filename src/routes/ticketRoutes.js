@@ -1,12 +1,8 @@
 const express = require("express");
 const router = express.Router();
+const ticketController = require("../controllers/ticketController");
+const { authenticate } = require("../middleware/authMiddleware");
 
-const ticketController =
-  require("../controllers/ticketController");
-
-router.post(
-  "/verify",
-  ticketController.verifyTicket
-);
+router.post("/verify", authenticate, ticketController.verifyTicket);
 
 module.exports = router;

@@ -10,15 +10,49 @@ exports.getUsers = async (req, res) => {
         name: true,
         email: true,
         role: true,
+        nic: true,
+        phone: true,
         createdAt: true
-      }
+      },
+      orderBy: { createdAt: "desc" }
     });
 
     res.json({
       success: true,
       data: users
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const allowedRoles = ["admin", "owner", "driver", "conductor", "passenger"];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ success: false, message: "Invalid role" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: Number(id) },
+      data: { role },
+      select: { id: true, name: true, email: true, role: true }
+    });
+
+    res.json({ success: true, message: "User role updated successfully", data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.user.delete({ where: { id: Number(id) } });
+    res.json({ success: true, message: "User deleted successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -31,8 +65,7 @@ exports.getBuses = async (req, res) => {
       include: {
         route: true,
         owner: true,
-        drivers: true,
-        gpsLogs: true
+        drivers: true
       }
     });
 
@@ -40,7 +73,6 @@ exports.getBuses = async (req, res) => {
       success: true,
       data: buses
     });
-
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -59,7 +91,6 @@ exports.getRoutes = async (req, res) => {
       success: true,
       data: routes
     });
-
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -82,7 +113,6 @@ exports.getEmergencyReports = async (req, res) => {
       success: true,
       data: reports
     });
-
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -91,7 +121,6 @@ exports.getEmergencyReports = async (req, res) => {
 // ===================== STATS =====================
 exports.getStats = async (req, res) => {
   try {
-
     const totalUsers = await prisma.user.count();
     const totalBuses = await prisma.bus.count();
     const totalRoutes = await prisma.route.count();
@@ -106,7 +135,6 @@ exports.getStats = async (req, res) => {
         totalEmergency
       }
     });
-
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

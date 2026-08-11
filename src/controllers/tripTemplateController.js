@@ -1,79 +1,44 @@
 const { PrismaClient } = require("@prisma/client");
+const { generateTripForTemplate } = require("../services/tripService");
 const prisma = new PrismaClient();
 
-// ======================================================
-// HELPERS
-// ======================================================
-function combineDateAndTime(date, timeString) {
-  // timeString = "08:30"
-  const [hours, minutes] = timeString.split(":").map(Number);
+const normalizeDays = (value) => {
+  const allowed = new Set(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
+  const days = String(value || "MON,TUE,WED,THU,FRI,SAT,SUN")
+    .split(",")
+    .map((day) => day.trim().toUpperCase())
+    .filter((day, index, array) => allowed.has(day) && array.indexOf(day) === index);
+  if (!days.length) throw new Error("Select at least one valid active day");
+  return days.join(",");
+};
 
-  const d = new Date(date);
-  d.setHours(hours || 0);
-  d.setMinutes(minutes || 0);
-  d.setSeconds(0);
-  d.setMilliseconds(0);
+const validateTime = (value, field) => {
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""))) {
+    throw new Error(`${field} must use HH:mm format`);
+  }
+};
 
-  return d;
+async function resolveBusAndRoute(busId, routeId) {
+  const bus = await prisma.bus.findUnique({ where: { id: Number(busId) } });
+  if (!bus) throw Object.assign(new Error("Bus not found"), { status: 404 });
+
+  const finalRouteId = routeId ? Number(routeId) : bus.routeId;
+  if (!finalRouteId) throw Object.assign(new Error("Select a route for this schedule"), { status: 400 });
+
+  const route = await prisma.route.findUnique({ where: { id: finalRouteId } });
+  if (!route) throw Object.assign(new Error("Route not found"), { status: 404 });
+  return { bus, route, finalRouteId };
 }
 
-function generateTripCode(prefix = "TRIP") {
-  const random = Math.floor(100000 + Math.random() * 900000);
-  return `${prefix}-${Date.now()}-${random}`;
-}
-
-// ======================================================
-// CREATE TEMPLATE
-// ======================================================
 exports.createTripTemplate = async (req, res) => {
   try {
-    const {
-      busId,
-      routeId,
-      departureTime, // "08:30"
-      arrivalTime,   // "11:45"
-      price,
-      isActive
-    } = req.body;
-
+    const { busId, routeId, departureTime, arrivalTime, price = 0, activeDays, isActive = true } = req.body;
     if (!busId || !departureTime || !arrivalTime) {
-      return res.status(400).json({
-        success: false,
-        message: "busId, departureTime and arrivalTime are required"
-      });
+      return res.status(400).json({ success: false, message: "Bus, departure time and arrival time are required" });
     }
-
-    const bus = await prisma.bus.findUnique({
-      where: { id: Number(busId) },
-      include: { route: true }
-    });
-
-    if (!bus) {
-      return res.status(404).json({
-        success: false,
-        message: "Bus not found"
-      });
-    }
-
-    let finalRouteId = routeId ? Number(routeId) : bus.routeId || null;
-
-    if (!finalRouteId) {
-      return res.status(400).json({
-        success: false,
-        message: "No route assigned to bus. Please assign a route first or provide routeId."
-      });
-    }
-
-    const route = await prisma.route.findUnique({
-      where: { id: finalRouteId }
-    });
-
-    if (!route) {
-      return res.status(404).json({
-        success: false,
-        message: "Route not found"
-      });
-    }
+    validateTime(departureTime, "Departure time");
+    validateTime(arrivalTime, "Arrival time");
+    const { route, finalRouteId } = await resolveBusAndRoute(busId, routeId);
 
     const template = await prisma.tripTemplate.create({
       data: {
@@ -83,311 +48,107 @@ exports.createTripTemplate = async (req, res) => {
         arrivalCity: route.endLocation,
         departureTime,
         arrivalTime,
-        price: price ? Number(price) : 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true
+        price: Math.max(0, Number(price) || 0),
+        activeDays: normalizeDays(activeDays),
+        isActive: Boolean(isActive)
       },
-      include: {
-        bus: true,
-        route: true
-      }
+      include: { bus: true, route: true }
     });
 
+    const todayTrip = await generateTripForTemplate(template);
     return res.status(201).json({
       success: true,
-      message: "Trip template created successfully",
-      data: template
+      message: todayTrip
+        ? "Schedule created and today's trip generated automatically"
+        : "Schedule created. A trip will be generated automatically on its next active day",
+      data: template,
+      todayTrip
     });
   } catch (err) {
     console.error("createTripTemplate error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create trip template",
-      error: err.message
-    });
+    return res.status(err.status || 500).json({ success: false, message: err.message || "Failed to create schedule" });
   }
 };
 
-// ======================================================
-// GET ALL TEMPLATES
-// ======================================================
-exports.getTripTemplates = async (req, res) => {
+exports.getTripTemplates = async (_req, res) => {
   try {
-    const templates = await prisma.tripTemplate.findMany({
-      include: {
-        bus: {
-          include: {
-            route: true
-          }
-        },
-        route: true
-      },
-      orderBy: {
-        id: "desc"
-      }
+    const data = await prisma.tripTemplate.findMany({
+      include: { bus: { include: { route: true, owner: { include: { user: true } } } }, route: true },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }]
     });
-
-    return res.status(200).json({
-      success: true,
-      data: templates
-    });
+    return res.json({ success: true, data });
   } catch (err) {
     console.error("getTripTemplates error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch trip templates",
-      error: err.message
-    });
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ======================================================
-// GET TEMPLATE BY ID
-// ======================================================
 exports.getTripTemplateById = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-
-    const template = await prisma.tripTemplate.findUnique({
-      where: { id },
-      include: {
-        bus: {
-          include: { route: true }
-        },
-        route: true
-      }
+    const data = await prisma.tripTemplate.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { bus: true, route: true, trips: { orderBy: { tripDate: "desc" }, take: 10 } }
     });
-
-    if (!template) {
-      return res.status(404).json({
-        success: false,
-        message: "Trip template not found"
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: template
-    });
+    if (!data) return res.status(404).json({ success: false, message: "Trip schedule not found" });
+    return res.json({ success: true, data });
   } catch (err) {
-    console.error("getTripTemplateById error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch trip template",
-      error: err.message
-    });
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ======================================================
-// UPDATE TEMPLATE
-// ======================================================
 exports.updateTripTemplate = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const {
-      busId,
-      routeId,
-      departureTime,
-      arrivalTime,
-      price,
-      isActive
-    } = req.body;
+    const existing = await prisma.tripTemplate.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ success: false, message: "Trip schedule not found" });
 
-    const existing = await prisma.tripTemplate.findUnique({
-      where: { id }
-    });
+    const busId = req.body.busId ?? existing.busId;
+    const routeId = req.body.routeId ?? existing.routeId;
+    const { route, finalRouteId } = await resolveBusAndRoute(busId, routeId);
+    const departureTime = req.body.departureTime ?? existing.departureTime;
+    const arrivalTime = req.body.arrivalTime ?? existing.arrivalTime;
+    validateTime(departureTime, "Departure time");
+    validateTime(arrivalTime, "Arrival time");
 
-    if (!existing) {
-      return res.status(404).json({
-        success: false,
-        message: "Trip template not found"
-      });
-    }
-
-    let finalBusId = busId ? Number(busId) : existing.busId;
-    let finalRouteId = routeId ? Number(routeId) : existing.routeId;
-
-    const bus = await prisma.bus.findUnique({
-      where: { id: finalBusId },
-      include: { route: true }
-    });
-
-    if (!bus) {
-      return res.status(404).json({
-        success: false,
-        message: "Bus not found"
-      });
-    }
-
-    if (!finalRouteId) {
-      finalRouteId = bus.routeId || null;
-    }
-
-    if (!finalRouteId) {
-      return res.status(400).json({
-        success: false,
-        message: "No route assigned to bus"
-      });
-    }
-
-    const route = await prisma.route.findUnique({
-      where: { id: finalRouteId }
-    });
-
-    if (!route) {
-      return res.status(404).json({
-        success: false,
-        message: "Route not found"
-      });
-    }
-
-    const updated = await prisma.tripTemplate.update({
+    const data = await prisma.tripTemplate.update({
       where: { id },
       data: {
-        busId: finalBusId,
+        busId: Number(busId),
         routeId: finalRouteId,
         departureCity: route.startLocation,
         arrivalCity: route.endLocation,
-        departureTime: departureTime ?? existing.departureTime,
-        arrivalTime: arrivalTime ?? existing.arrivalTime,
-        price:
-          price !== undefined
-            ? Number(price)
-            : existing.price,
-        isActive:
-          isActive !== undefined
-            ? Boolean(isActive)
-            : existing.isActive
+        departureTime,
+        arrivalTime,
+        price: req.body.price !== undefined ? Math.max(0, Number(req.body.price) || 0) : existing.price,
+        activeDays: req.body.activeDays !== undefined ? normalizeDays(req.body.activeDays) : existing.activeDays,
+        isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : existing.isActive
       },
-      include: {
-        bus: true,
-        route: true
-      }
+      include: { bus: true, route: true }
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "Trip template updated successfully",
-      data: updated
-    });
+    // Safe catch-up after activating or changing a schedule.
+    const todayTrip = await generateTripForTemplate(data);
+    return res.json({ success: true, message: "Trip schedule updated", data, todayTrip });
   } catch (err) {
     console.error("updateTripTemplate error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update trip template",
-      error: err.message
-    });
+    return res.status(err.status || 500).json({ success: false, message: err.message });
   }
 };
 
-// ======================================================
-// DELETE TEMPLATE
-// ======================================================
 exports.deleteTripTemplate = async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const existing = await prisma.tripTemplate.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ success: false, message: "Trip schedule not found" });
 
-    const existing = await prisma.tripTemplate.findUnique({
-      where: { id }
-    });
-
-    if (!existing) {
-      return res.status(404).json({
-        success: false,
-        message: "Trip template not found"
-      });
-    }
-
-    await prisma.tripTemplate.delete({
-      where: { id }
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Trip template deleted successfully"
-    });
+    // Preserve historical bookings/trips and remove only the recurring link.
+    await prisma.$transaction([
+      prisma.trip.updateMany({ where: { templateId: id }, data: { templateId: null } }),
+      prisma.tripTemplate.delete({ where: { id } })
+    ]);
+    return res.json({ success: true, message: "Trip schedule deleted; existing trips were preserved" });
   } catch (err) {
     console.error("deleteTripTemplate error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete trip template",
-      error: err.message
-    });
-  }
-};
-
-// ======================================================
-// GENERATE TODAY TRIPS FROM TEMPLATES
-// ======================================================
-exports.generateTodayTripsFromTemplates = async (req, res) => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const templates = await prisma.tripTemplate.findMany({
-      where: { isActive: true },
-      include: {
-        bus: true,
-        route: true
-      }
-    });
-
-    let createdCount = 0;
-    const createdTrips = [];
-
-    for (const template of templates) {
-      const existingTrip = await prisma.trip.findFirst({
-        where: {
-          templateId: template.id,
-          tripDate: {
-            gte: today,
-            lt: tomorrow
-          }
-        }
-      });
-
-      if (existingTrip) {
-        continue;
-      }
-
-      const departureDateTime = combineDateAndTime(today, template.departureTime);
-      const arrivalDateTime = combineDateAndTime(today, template.arrivalTime);
-
-      const trip = await prisma.trip.create({
-        data: {
-          tripCode: generateTripCode("TRIP"),
-          tripDate: today,
-          busId: template.busId,
-          routeId: template.routeId,
-          templateId: template.id,
-          departureCity: template.departureCity,
-          arrivalCity: template.arrivalCity,
-          departureTime: departureDateTime,
-          arrivalTime: arrivalDateTime,
-          price: template.price || 0,
-          status: "ACTIVE",
-          isActive: true
-        }
-      });
-
-      createdTrips.push(trip);
-      createdCount++;
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: `${createdCount} trips generated for today`,
-      data: createdTrips
-    });
-  } catch (err) {
-    console.error("generateTodayTripsFromTemplates error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to generate today's trips",
-      error: err.message
-    });
+    return res.status(500).json({ success: false, message: err.message });
   }
 };

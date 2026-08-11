@@ -2,26 +2,91 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getIO } = require("../sockets/socket");
 
-// ================= GET SEATS =================
-exports.getBusSeats = async (req, res) => {
+// ================= GET SEATS BY TRIP (OR AUTO-GENERATE IF MISSING) =================
+exports.getTripSeats = async (req, res) => {
   try {
-    const { busId } = req.params;
+    const tripId = Number(req.params.tripId);
+    if (isNaN(tripId)) {
+      return res.status(400).json({ success: false, message: "Invalid trip ID" });
+    }
 
-    const seats = await prisma.seat.findMany({
-      where: { busId: parseInt(busId) },
-      orderBy: { seatNumber: "asc" }
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { bus: true }
     });
 
-    res.json({
+    if (!trip) {
+      return res.status(404).json({ success: false, message: "Trip not found" });
+    }
+
+    // Auto-unlock any expired seats (5 minute lock expiry)
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    await prisma.seat.updateMany({
+      where: {
+        tripId,
+        status: "LOCKED",
+        lockedAt: { lt: fiveMinAgo }
+      },
+      data: {
+        status: "AVAILABLE",
+        lockedBy: null,
+        lockedAt: null
+      }
+    });
+
+    let seats = await prisma.seat.findMany({
+      where: { tripId },
+      orderBy: { id: "asc" }
+    });
+
+    // Auto-generate trip seats if not already created
+    if (seats.length === 0 && trip.bus?.seatCount) {
+      const seatsData = [];
+      for (let i = 1; i <= trip.bus.seatCount; i++) {
+        seatsData.push({
+          seatNumber: `S${i}`,
+          status: "AVAILABLE",
+          busId: trip.busId,
+          tripId
+        });
+      }
+      await prisma.seat.createMany({ data: seatsData });
+
+      seats = await prisma.seat.findMany({
+        where: { tripId },
+        orderBy: { id: "asc" }
+      });
+    }
+
+    return res.json({
       success: true,
       data: seats
     });
-
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message
+    console.error("getTripSeats error:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ================= GET SEATS BY BUS (FALLBACK) =================
+exports.getBusSeats = async (req, res) => {
+  try {
+    const busId = Number(req.params.busId);
+    if (isNaN(busId)) {
+      return res.status(400).json({ success: false, message: "Invalid bus ID" });
+    }
+
+    const seats = await prisma.seat.findMany({
+      where: { busId },
+      orderBy: { id: "asc" }
     });
+
+    return res.json({
+      success: true,
+      data: seats
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -31,7 +96,7 @@ exports.lockSeat = async (req, res) => {
     const { seatId } = req.body;
 
     const seat = await prisma.seat.findUnique({
-      where: { id: seatId }
+      where: { id: Number(seatId) }
     });
 
     if (!seat) {
@@ -44,19 +109,28 @@ exports.lockSeat = async (req, res) => {
     if (seat.status === "BOOKED") {
       return res.status(400).json({
         success: false,
-        message: "Seat already booked"
+        message: "Seat is already booked"
       });
     }
 
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+
     if (seat.status === "LOCKED") {
-      return res.status(400).json({
-        success: false,
-        message: "Seat already locked"
-      });
+      const isExpired = seat.lockedAt && new Date(seat.lockedAt) < fiveMinAgo;
+
+      if (!isExpired) {
+        if (seat.lockedBy === req.user.id) {
+          return res.json({ success: true, data: seat });
+        }
+        return res.status(400).json({
+          success: false,
+          message: "Seat is locked by another passenger"
+        });
+      }
     }
 
     const updatedSeat = await prisma.seat.update({
-      where: { id: seatId },
+      where: { id: Number(seatId) },
       data: {
         status: "LOCKED",
         lockedBy: req.user.id,
@@ -64,19 +138,24 @@ exports.lockSeat = async (req, res) => {
       }
     });
 
-    getIO().emit("seatLocked", {
-      seatId: updatedSeat.id,
-      busId: updatedSeat.busId,
-      status: "LOCKED"
-    });
+    try {
+      getIO().emit("seatLocked", {
+        seatId: updatedSeat.id,
+        busId: updatedSeat.busId,
+        tripId: updatedSeat.tripId,
+        status: "LOCKED"
+      });
+    } catch (e) {
+      console.warn("Socket notification skipped:", e.message);
+    }
 
-    res.json({
+    return res.json({
       success: true,
       data: updatedSeat
     });
 
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });
@@ -89,7 +168,7 @@ exports.unlockSeat = async (req, res) => {
     const { seatId } = req.body;
 
     const updatedSeat = await prisma.seat.update({
-      where: { id: seatId },
+      where: { id: Number(seatId) },
       data: {
         status: "AVAILABLE",
         lockedBy: null,
@@ -97,17 +176,22 @@ exports.unlockSeat = async (req, res) => {
       }
     });
 
-    getIO().emit("seatUnlocked", {
-      seatId: updatedSeat.id
-    });
+    try {
+      getIO().emit("seatUnlocked", {
+        seatId: updatedSeat.id,
+        tripId: updatedSeat.tripId
+      });
+    } catch (e) {
+      console.warn("Socket notification skipped:", e.message);
+    }
 
-    res.json({
+    return res.json({
       success: true,
       data: updatedSeat
     });
 
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });
@@ -136,9 +220,12 @@ exports.unlockExpiredSeats = async () => {
         }
       });
 
-      getIO().emit("seatUnlocked", {
-        seatId: seat.id
-      });
+      try {
+        getIO().emit("seatUnlocked", {
+          seatId: seat.id,
+          tripId: seat.tripId
+        });
+      } catch (e) {}
     }
 
     return expiredSeats.length;

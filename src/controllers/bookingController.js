@@ -1,6 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 
 // ======================================================
@@ -31,47 +30,37 @@ exports.createBooking = async (req, res) => {
       return errorResponse(res, "Trip not found", 404);
     }
 
-    // 2. CHECK SEATS EXIST
+    // 2. CHECK SEATS EXIST FOR THIS TRIP
     const seats = await prisma.seat.findMany({
       where: {
-        id: { in: seatIds.map((id) => parseInt(id)) }
+        id: { in: seatIds.map((id) => parseInt(id)) },
+        tripId: parseInt(tripId)
       }
     });
 
     if (seats.length !== seatIds.length) {
-      return errorResponse(res, "Some seats not found", 404);
+      return errorResponse(res, "Some selected seats do not belong to this trip", 404);
     }
 
-    // 3. CHECK SEATS BELONG TO SAME BUS AS TRIP
-    const invalidSeats = seats.filter(
-      (seat) => seat.busId !== trip.busId
-    );
+    // 3. CHECK SEAT AVAILABILITY & LOCK OWNERSHIP
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    if (invalidSeats.length > 0) {
-      return errorResponse(
-        res,
-        "Some selected seats do not belong to this trip bus",
-        400
-      );
+    for (const seat of seats) {
+      if (seat.status === "BOOKED") {
+        return errorResponse(res, `Seat ${seat.seatNumber} is already booked`, 400);
+      }
+      if (seat.status === "LOCKED") {
+        const isExpired = seat.lockedAt && new Date(seat.lockedAt) < fiveMinAgo;
+        if (!isExpired && seat.lockedBy !== req.user.id) {
+          return errorResponse(res, `Seat ${seat.seatNumber} is currently locked by another passenger`, 400);
+        }
+      }
     }
 
-    // 4. CHECK IF SEATS ARE AVAILABLE
-    const unavailableSeats = seats.filter(
-      (seat) => seat.status !== "AVAILABLE" && seat.status !== "LOCKED"
-    );
-
-    if (unavailableSeats.length > 0) {
-      return errorResponse(
-        res,
-        "Some seats are already booked/unavailable",
-        400
-      );
-    }
-
-    // 5. CALCULATE TOTAL AMOUNT
+    // 4. CALCULATE TOTAL AMOUNT
     const totalAmount = Number(trip.price || 0) * seatIds.length;
 
-    // 6. CREATE BOOKING
+    // 5. CREATE BOOKING
     const booking = await prisma.booking.create({
       data: {
         userId: req.user.id,
@@ -82,7 +71,7 @@ exports.createBooking = async (req, res) => {
       }
     });
 
-    // 7. UPDATE SEATS -> BOOKED
+    // 6. UPDATE SEATS -> BOOKED
     await prisma.seat.updateMany({
       where: {
         id: { in: seatIds.map((id) => parseInt(id)) }
@@ -90,11 +79,12 @@ exports.createBooking = async (req, res) => {
       data: {
         status: "BOOKED",
         bookingId: booking.id,
-        lockedUntil: null
+        lockedBy: null,
+        lockedAt: null
       }
     });
 
-    // 8. FETCH FULL BOOKING DATA
+    // 7. FETCH FULL BOOKING DATA
     const fullBooking = await prisma.booking.findUnique({
       where: { id: booking.id },
       include: {
@@ -222,7 +212,8 @@ exports.cancelBooking = async (req, res) => {
       data: {
         status: "AVAILABLE",
         bookingId: null,
-        lockedUntil: null
+        lockedBy: null,
+        lockedAt: null
       }
     });
 

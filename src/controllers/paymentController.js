@@ -5,24 +5,25 @@ const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
-// ================= CREATE PAYMENT =================
+// ================= CREATE PAYMENT (PAYHERE PAYLOAD) =================
 const createPayment = async (req, res) => {
   try {
     const { bookingId } = req.body;
 
     const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+      where: { id: Number(bookingId) },
       include: { user: true }
     });
 
     if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
+      return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
-    const merchantId = process.env.PAYHERE_MERCHANT_ID;
-    const secret = process.env.PAYHERE_SECRET;
+    const merchantId = process.env.PAYHERE_MERCHANT_ID || "1220000";
+    const secret = process.env.PAYHERE_SECRET || "456789";
 
     const orderId = `BOOK_${booking.id}`;
+    const currency = process.env.PAYHERE_CURRENCY || "LKR";
 
     const hash = crypto
       .createHash("md5")
@@ -30,7 +31,7 @@ const createPayment = async (req, res) => {
         merchantId +
         orderId +
         booking.totalAmount +
-        process.env.PAYHERE_CURRENCY +
+        currency +
         crypto.createHash("md5").update(secret).digest("hex").toUpperCase()
       )
       .digest("hex")
@@ -39,18 +40,18 @@ const createPayment = async (req, res) => {
     const paymentData = {
       sandbox: true,
       merchant_id: merchantId,
-      return_url: process.env.PAYHERE_RETURN_URL,
-      cancel_url: process.env.PAYHERE_CANCEL_URL,
-      notify_url: process.env.PAYHERE_NOTIFY_URL,
+      return_url: process.env.PAYHERE_RETURN_URL || "http://localhost:3000/dashboard/passenger/booking/success/" + booking.id,
+      cancel_url: process.env.PAYHERE_CANCEL_URL || "http://localhost:3000/dashboard/passenger/booking",
+      notify_url: process.env.PAYHERE_NOTIFY_URL || "http://localhost:5000/api/payment/notify",
 
       order_id: orderId,
-      items: "Bus Ticket Booking",
-      currency: process.env.PAYHERE_CURRENCY,
+      items: `Bus Ticket Booking #${booking.id}`,
+      currency,
       amount: booking.totalAmount,
 
       first_name: booking.user.name,
       email: booking.user.email,
-      phone: "0700000000",
+      phone: "0770000000",
 
       hash
     };
@@ -68,10 +69,73 @@ const createPayment = async (req, res) => {
   }
 };
 
-// ================= PAYHERE NOTIFY =================
+// ================= MOCK / DEMO PAYMENT INSTANT CONFIRMATION =================
+const mockPayment = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: "Booking ID is required" });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: Number(bookingId) },
+      include: { seats: true, trip: { include: { bus: true, route: true } } }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Generate unique Ticket ID & QR
+    const ticketId = booking.qrCode || `BE-${Date.now()}-${uuidv4().substring(0, 8).toUpperCase()}`;
+    const qrDataUrl = await QRCode.toDataURL(ticketId);
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: Number(bookingId) },
+      data: {
+        paymentStatus: "PAID",
+        status: "CONFIRMED",
+        paymentId: `MOCK_PAY_${Date.now()}`,
+        qrCode: ticketId
+      },
+      include: {
+        seats: true,
+        trip: {
+          include: {
+            bus: true,
+            route: true
+          }
+        }
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: "Payment confirmed successfully (Demo Mode)",
+      data: {
+        booking: updatedBooking,
+        ticketId,
+        qrDataUrl
+      }
+    });
+
+  } catch (err) {
+    console.error("mockPayment error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+// ================= PAYHERE NOTIFY WEBHOOK =================
 const payhereNotify = async (req, res) => {
   try {
     const { order_id, payment_id, status_code } = req.body;
+
+    if (!order_id) {
+      return res.status(400).send("Missing order_id");
+    }
 
     const bookingId = parseInt(order_id.replace("BOOK_", ""));
 
@@ -84,33 +148,29 @@ const payhereNotify = async (req, res) => {
         return res.status(404).send("Booking not found");
       }
 
-      const ticketId = uuidv4();
-
-      const qrImage = await QRCode.toDataURL(ticketId);
+      const ticketId = `BE-${Date.now()}-${uuidv4().substring(0, 8).toUpperCase()}`;
 
       await prisma.booking.update({
         where: { id: bookingId },
         data: {
           paymentStatus: "PAID",
           status: "CONFIRMED",
-          paymentId,
+          paymentId: payment_id || `PAYHERE_${Date.now()}`,
           qrCode: ticketId
         }
       });
-
-      console.log("QR GENERATED:", qrImage);
     }
 
     return res.send("OK");
 
   } catch (err) {
-    console.error(err);
+    console.error("payhereNotify error:", err);
     return res.status(500).send("ERROR");
   }
 };
 
-// ✅ IMPORTANT EXPORT FIX
 module.exports = {
   createPayment,
+  mockPayment,
   payhereNotify
 };

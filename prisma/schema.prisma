@@ -176,12 +176,18 @@ model Seat {
   lockedAt DateTime?
 
   busId Int
-  bus   Bus @relation(fields: [busId], references: [id])
+  bus   Bus @relation(fields: [busId], references: [id], onDelete: Cascade)
+
+  tripId Int?
+  trip   Trip? @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
   bookingId Int?
   booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
+
+  @@index([busId])
+  @@index([tripId])
 }
 
 model Trip {
@@ -211,6 +217,11 @@ model Trip {
   template TripTemplate? @relation(fields: [templateId], references: [id])
 
   bookings Booking[]
+  seats    Seat[]
+
+  @@index([busId])
+  @@index([routeId])
+  @@index([tripDate])
 }
 
 model TripTemplate {
@@ -225,8 +236,9 @@ model TripTemplate {
   departureTime String
   arrivalTime   String
 
-  price    Float   @default(0)
-  isActive Boolean @default(true)
+  price      Float   @default(0)
+  activeDays String  @default("MON,TUE,WED,THU,FRI,SAT,SUN")
+  isActive   Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
