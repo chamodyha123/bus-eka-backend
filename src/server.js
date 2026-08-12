@@ -1,6 +1,23 @@
 // Load .env BEFORE importing app/controllers/jobs because they read process.env at startup.
 require("dotenv").config();
 
+// Fail fast and loudly if required secrets are missing, instead of letting
+// routes crash with a cryptic "secretOrPrivateKey must have a value" error
+// the first time someone tries to log in. On Azure App Service these must
+// be set under Configuration > Application settings (a local .env file is
+// never deployed).
+const REQUIRED_ENV_VARS = ["JWT_SECRET", "DATABASE_URL"];
+const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+
+if (missingEnvVars.length > 0) {
+  console.error(
+    `❌ Missing required environment variable(s): ${missingEnvVars.join(", ")}. ` +
+      "Set these in your .env file locally, or in Azure App Service under " +
+      "Configuration > Application settings in production. Server will not start."
+  );
+  process.exit(1);
+}
+
 const http = require("http");
 const { Server: SocketIOServer } = require("socket.io");
 const app = require("./app");
