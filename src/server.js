@@ -1,189 +1,108 @@
+// Load .env BEFORE importing app/controllers/jobs because they read process.env at startup.
+require("dotenv").config();
+
 const http = require("http");
-
+const { Server: SocketIOServer } = require("socket.io");
 const app = require("./app");
+const { startBackgroundJobs } = require("./jobs/backgroundJobs");
 
-const {
-  startBackgroundJobs,
-} = require("./jobs/backgroundJobs");
+const PORT = Number(process.env.PORT || 5000);
+const HOST = process.env.HOST || "0.0.0.0";
 
-const {
-  Server: SocketIOServer,
-} = require("socket.io");
+const httpServer = http.createServer(app);
 
-const PORT = Number(
-  process.env.PORT || 8080
-);
+const configuredOrigins = String(
+  process.env.CORS_ORIGINS || process.env.FRONTEND_URL || ""
+)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 
-const HOST = "0.0.0.0";
+const defaultOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "https://bus-eka-frontend.vercel.app",
+];
 
-const httpServer =
-  http.createServer(app);
+const socketOrigins = [
+  ...new Set([...configuredOrigins, ...defaultOrigins]),
+];
 
-/**
- * Socket.IO
- */
-const io = new SocketIOServer(
-  httpServer,
-  {
-    cors: {
-      origin: "*",
-      methods: [
-        "GET",
-        "POST",
-        "PUT",
-        "PATCH",
-        "DELETE",
-      ],
-    },
-  }
-);
-
-/**
- * Make Socket.IO available
- * throughout the application.
- */
-app.set("io", io);
-
-/**
- * Socket.IO connections.
- */
-io.on("connection", (socket) => {
-  console.log(
-    `🔌 Socket connected: ${socket.id}`
-  );
-
-  socket.on(
-    "joinBus",
-    (busId) => {
-      if (busId) {
-        socket.join(`bus:${busId}`);
-
-        console.log(
-          `🚌 Socket ${socket.id} joined bus:${busId}`
-        );
-      }
-    }
-  );
-
-  socket.on(
-    "leaveBus",
-    (busId) => {
-      if (busId) {
-        socket.leave(`bus:${busId}`);
-      }
-    }
-  );
-
-  socket.on(
-    "joinTrip",
-    (tripId) => {
-      if (tripId) {
-        socket.join(`trip:${tripId}`);
-
-        console.log(
-          `🎫 Socket ${socket.id} joined trip:${tripId}`
-        );
-      }
-    }
-  );
-
-  socket.on(
-    "leaveTrip",
-    (tripId) => {
-      if (tripId) {
-        socket.leave(`trip:${tripId}`);
-      }
-    }
-  );
-
-  socket.on(
-    "disconnect",
-    () => {
-      console.log(
-        `🔌 Socket disconnected: ${socket.id}`
-      );
-    }
-  );
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: socketOrigins.length ? socketOrigins : true,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
 });
 
-/**
- * Start HTTP server.
- */
-httpServer.listen(
-  PORT,
-  HOST,
-  async () => {
-    console.log(
-      "========================================"
-    );
+app.set("io", io);
 
-    console.log(
-      "🚌 BUS EKA BACKEND"
-    );
+io.on("connection", (socket) => {
+  console.log(`🔌 Socket connected: ${socket.id}`);
 
-    console.log(
-      "========================================"
-    );
+  socket.on("joinBus", (busId) => {
+    if (busId !== undefined && busId !== null) {
+      socket.join(`bus:${busId}`);
+    }
+  });
 
-    console.log(
-      `🚀 Server running on ${HOST}:${PORT}`
-    );
+  socket.on("leaveBus", (busId) => {
+    if (busId !== undefined && busId !== null) {
+      socket.leave(`bus:${busId}`);
+    }
+  });
 
-    console.log(
-      `🌍 Environment: ${
-        process.env.NODE_ENV || "development"
-      }`
-    );
+  socket.on("joinTrip", (tripId) => {
+    if (tripId !== undefined && tripId !== null) {
+      socket.join(`trip:${tripId}`);
+    }
+  });
 
-    console.log(
-      "🔌 Socket.IO initialized"
-    );
+  socket.on("leaveTrip", (tripId) => {
+    if (tripId !== undefined && tripId !== null) {
+      socket.leave(`trip:${tripId}`);
+    }
+  });
 
-    console.log(
-      "========================================"
-    );
+  socket.on("disconnect", (reason) => {
+    console.log(`🔌 Socket disconnected: ${socket.id} (${reason})`);
+  });
+});
 
-    /**
-     * Start cron/background jobs.
-     */
+httpServer.listen(PORT, HOST, async () => {
+  console.log("========================================");
+  console.log("🚌 BUS EKA BACKEND");
+  console.log("========================================");
+  console.log(`🚀 Server running on ${HOST}:${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`🌐 CORS origins: ${socketOrigins.join(", ")}`);
+  console.log("🔌 Socket.IO initialized");
+  console.log("========================================");
+
+  try {
     await startBackgroundJobs();
+  } catch (error) {
+    // Do not kill the HTTP server because a background job failed.
+    console.error("❌ Background jobs failed to start:", error);
   }
-);
+});
 
-/**
- * Handle server errors.
- */
-httpServer.on(
-  "error",
-  (error) => {
-    console.error(
-      "❌ HTTP server error:",
-      error
-    );
-  }
-);
+httpServer.on("error", (error) => {
+  console.error("❌ HTTP server error:", error);
+});
 
-/**
- * Graceful shutdown.
- */
 async function shutdown(signal) {
-  console.log(
-    `\n🛑 ${signal} received. Shutting down...`
-  );
+  console.log(`\n🛑 ${signal} received. Shutting down...`);
 
+  io.close();
   httpServer.close(() => {
-    console.log(
-      "✅ HTTP server closed."
-    );
+    console.log("✅ HTTP server closed.");
+    process.exit(0);
   });
 }
 
-process.on(
-  "SIGTERM",
-  () => shutdown("SIGTERM")
-);
-
-process.on(
-  "SIGINT",
-  () => shutdown("SIGINT")
-);
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

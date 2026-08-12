@@ -83,10 +83,12 @@ exports.register = async (req, res) => {
       });
     }
 
+    const { password: _password, ...safeUser } = user;
+
     return res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user
+      user: safeUser
     });
 
   } catch (err) {
